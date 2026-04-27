@@ -1,0 +1,44 @@
+TASK ID: TASK 02
+TITLE: CLI Flag Types & Single-Pass Classifier
+ROLE: CLI Architecture
+STATUS: TODO
+
+DESCRIPTION:
+Implement internal/cli/flags.go containing the shared flag type definitions
+(ValidFlag, FlagError, RawColorRule, ParsedArgs) and the ClassifyArgs function —
+a single-pass classifier that routes every token in os.Args[1:] into exactly
+one bucket. This is the foundation of the CLI layer; all other flag logic
+depends on these types. Eliminates the scattered multi-function flag parsing
+that caused recurring bugs in previous projects.
+
+REQUIREMENTS:
+- Define ValidFlag, FlagError, RawColorRule, ParsedArgs structs
+- ClassifyArgs([]string) ParsedArgs: one loop, every token in exactly one bucket
+- Recognized prefixes: --output=, --align=, --color=, --reverse=, --stdin
+- --color=<val> peeks at next token; consumes as Substring if non-flag
+- Unknown -- tokens → UnknownFlags; known prefix bad format → Malformed
+- Duplicate --output → last wins; duplicate --align → last wins
+- No external packages — standard library only
+- Requires: TASK 01 complete
+
+FILES TO CREATE/MODIFY:
+- internal/cli/flags.go
+- internal/cli/cli_test.go
+
+ACCEPTANCE CRITERIA / TEST CASES:
+- [CLI]: go run . --color=red Hello → ColorRules=[{red, ""}], Positional=["Hello"]
+- [CLI]: go run . --color=orange GuYs "HeY GuYs" → ColorRules=[{orange, GuYs}], Positional=["HeY GuYs"]
+- [CLI]: go run . --output test.txt Hello → Malformed=[{--output test.txt, output}]
+- [CLI]: go run . --unknown Hello → UnknownFlags=[{--unknown, unknown}]
+- [CLI]: go run . --output=a.txt --output=b.txt Hi → OutputValue="b.txt", WarnOutputRedirected fired
+- [CLI]: go run . --stdin shadow → StdinMode=true, Positional=["shadow"]
+
+DEFINITION OF DONE:
+- [ ] Core logic is fully implemented and executes without runtime errors.
+- [ ] Code is formatted according to project standards (gofmt).
+- [ ] Unit/Integration tests are written and passing.
+- [ ] Edge cases, invalid inputs, and error states are handled gracefully.
+- [ ] Documentation (inline comments, README, or API docs) has been updated.
+- [ ] Task execution verified in a local sandbox or staging environment.
+- [ ] Final results and learnings documented in README.md or a dedicated report file.
+- [ ] AI index log entries added to .ai/hmim.ai.txt.

@@ -1,0 +1,49 @@
+TASK ID: TASK 09
+TITLE: Output Writer (--output flag I/O)
+ROLE: I/O Engineering
+STATUS: TODO
+
+DESCRIPTION:
+Implement internal/output/output.go — a thin io.Writer abstraction that
+resolves whether to write to os.Stdout or to a named file. Lives in its
+own package (independent of render/) to mirror the same pattern as reverse/.
+Validation of the --output flag value (.txt extension, non-empty) is enforced
+upstream in ClassifyArgs; GetWriter itself does no validation.
+
+REQUIREMENTS:
+- GetWriter(outputPath string) (io.Writer, *os.File, error)
+    outputPath == "" → returns (os.Stdout, nil, nil)
+    outputPath != "" → os.OpenFile(path, O_WRONLY|O_CREATE|O_TRUNC, 0644)
+                        path cleaned with filepath.Clean before opening
+- *os.File returned separately so main can defer file.Close()
+- Semantics: always overwrites (O_TRUNC); appending is not supported
+- ANSI escape codes written unchanged into file (visible via cat)
+- Flag validation (not in this file — CLI concern):
+    Value must be non-empty and end with .txt → else Malformed{Category:"output"}
+    --output without = → Malformed{Category:"output"}
+    Duplicate --output → last wins + WarnOutputRedirected (handled in ClassifyArgs)
+- No external packages — standard library only
+- Requires: TASK 03 complete (errs.go for Malformed category string constant)
+
+FILES TO CREATE/MODIFY:
+- internal/output/output.go
+- internal/output/output_test.go
+
+ACCEPTANCE CRITERIA / TEST CASES:
+- [CLI]: go run . --output=test.txt "hello" standard → file created, correct art inside
+- [CLI]: go run . --output=test.txt "First\nTest" shadow → multi-line art in file
+- [CLI]: go run . --output=test.txt "123 -> #$%" standard → special chars preserved
+- [CLI]: cat -e test.txt → lines end with $ (no extra whitespace issues)
+- [CLI]: go run . --output test.txt "hi" → usage error (space instead of =)
+- [CLI]: go run . --output=bad.csv "hi" → usage error (not .txt)
+- [CLI]: GetWriter("") → returns os.Stdout, nil file, nil error
+
+DEFINITION OF DONE:
+- [ ] Core logic is fully implemented and executes without runtime errors.
+- [ ] Code is formatted according to project standards (gofmt).
+- [ ] Unit/Integration tests are written and passing.
+- [ ] Edge cases, invalid inputs, and error states are handled gracefully.
+- [ ] Documentation (inline comments, README, or API docs) has been updated.
+- [ ] Task execution verified in a local sandbox or staging environment.
+- [ ] Final results and learnings documented in README.md or a dedicated report file.
+- [ ] AI index log entries added to .ai/kchatzian.ai.txt.

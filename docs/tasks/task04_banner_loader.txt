@@ -1,0 +1,46 @@
+TASK ID: TASK 04
+TITLE: Banner File Loader
+ROLE: Banner Engineering
+STATUS: TODO
+
+DESCRIPTION:
+Implement internal/banner/loader.go. Reads a banner font file, validates it,
+auto-detects the separator format (leading vs trailing), and returns a
+map[rune][]string for O(1) character lookup. Falls back to standard.txt
+with a stderr warning on any error rather than hard-crashing. This module
+is the foundation; both the render and reverse pipelines depend on it.
+
+REQUIREMENTS:
+- Load(name string) (map[rune][]string, error)
+- sanitizeName: filepath.Base → lowercase → strip .txt → allow [a-z0-9\-_] only
+- isLeadingSeparator: inspect ! block lines 9–17 to detect format
+- Leading format (standard, shadow, thinkertoy, greek, dancing, block): start = (index×9)+1
+- Trailing format (doom): start = index×9
+- File must be exactly 855 lines; character index = rune−32, range [32,126]
+- Paths tried: banner/<name>.txt then ../banner/<name>.txt
+- Supported names: standard, shadow, thinkertoy, doom, greek, dancing, block
+- On missing/invalid: emit WarnBannerNotFound or WarnBannerInvalid; load standard
+- Hard error only if standard.txt itself fails
+- No external packages — standard library only
+- Requires: TASK 03 complete (uses errs.go warnings)
+
+FILES TO CREATE/MODIFY:
+- internal/banner/loader.go
+- internal/banner/loader_test.go
+
+ACCEPTANCE CRITERIA / TEST CASES:
+- [CLI]: Load("standard") → map with 95 entries, each 8 lines
+- [CLI]: Load("doom") → trailing format correctly parsed
+- [CLI]: Load("invalid") → warning to stderr + standard loaded
+- [CLI]: Load("../etc/passwd") → sanitized, warning, standard fallback
+- [CLI]: File with 854 lines → invalid banner warning + standard fallback
+
+DEFINITION OF DONE:
+- [ ] Core logic is fully implemented and executes without runtime errors.
+- [ ] Code is formatted according to project standards (gofmt).
+- [ ] Unit/Integration tests are written and passing.
+- [ ] Edge cases, invalid inputs, and error states are handled gracefully.
+- [ ] Documentation (inline comments, README, or API docs) has been updated.
+- [ ] Task execution verified in a local sandbox or staging environment.
+- [ ] Final results and learnings documented in README.md or a dedicated report file.
+- [ ] AI index log entries added to .ai/edamaski.ai.txt.

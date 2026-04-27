@@ -1,0 +1,51 @@
+TASK ID: TASK 07
+TITLE: Platform-Specific Terminal Width Detection
+ROLE: Platform Integration
+STATUS: TODO
+
+DESCRIPTION:
+Implement the platform-specific getWinSize stubs and the cross-platform
+DetectTerminalWidth / ResolveWidth functions in internal/render/alignment.go
+plus its two build-tag companion files. Terminal width is used by all
+alignment modes; falling back gracefully to 80 columns is critical on
+Windows and in non-TTY environments (file output, CI).
+
+REQUIREMENTS:
+alignment_unix.go (//go:build !windows):
+- getWinSize(fd uintptr) (int, error): ioctl TIOCGWINSZ via syscall.Syscall
+
+alignment_windows.go (//go:build windows):
+- getWinSize(fd uintptr) (int, error): stub returning 0, errors.New("not supported")
+
+alignment.go (width-related functions only for this task):
+- DetectTerminalWidth() int:
+    1. Check COLUMNS env var (parse as int, must be > 0)
+    2. Call getWinSize(os.Stdout.Fd())
+    3. Fallback: 80
+- ResolveWidth(usingFileOutput bool) int:
+    usingFileOutput=true → always return 80
+    otherwise → DetectTerminalWidth()
+- No external packages — standard library only
+- Requires: TASK 05 complete
+
+FILES TO CREATE/MODIFY:
+- internal/render/alignment_unix.go
+- internal/render/alignment_windows.go
+- internal/render/alignment.go (DetectTerminalWidth, ResolveWidth only)
+- internal/render/render_test.go (extend)
+
+ACCEPTANCE CRITERIA / TEST CASES:
+- [CLI]: COLUMNS=120 go run . --align=right "Hi" → uses width 120
+- [CLI]: go run . --output=f.txt --align=right "Hi" → uses width 80 (file override)
+- [CLI]: Terminal resize → output adapts to new width on next run
+- [CLI]: Windows build compiles without syscall errors
+
+DEFINITION OF DONE:
+- [ ] Core logic is fully implemented and executes without runtime errors.
+- [ ] Code is formatted according to project standards (gofmt).
+- [ ] Unit/Integration tests are written and passing.
+- [ ] Edge cases, invalid inputs, and error states are handled gracefully.
+- [ ] Documentation (inline comments, README, or API docs) has been updated.
+- [ ] Task execution verified in a local sandbox or staging environment.
+- [ ] Final results and learnings documented in README.md or a dedicated report file.
+- [ ] AI index log entries added to .ai/gtzimoka.ai.txt.

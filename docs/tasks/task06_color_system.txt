@@ -1,0 +1,54 @@
+TASK ID: TASK 06
+TITLE: Color System (ANSI / Hex / RGB / HSL)
+ROLE: Color Systems
+STATUS: TODO
+
+DESCRIPTION:
+Implement internal/render/colorizer.go. Converts any supported color notation
+to an ANSI CSI start sequence, and provides per-rune ANSI wrapping helpers
+used by the render pipeline. Color is applied per-rune per-line so ANSI codes
+never bleed across characters or across lines.
+
+REQUIREMENTS:
+- ColorToANSI(color string) (start string, ok bool)
+    ok=false on unknown/unparsable input (caller warns and skips)
+- Named colors (case-insensitive): red, green, yellow, blue, magenta/purple,
+  cyan, white, black, gray/grey, orange, pink
+- Bright variants: brightred, bright-green, etc. (codes 90–97)
+- Hex: #RRGGBB → \x1b[38;2;R;G;Bm  (truecolor)
+- RGB: rgb(R, G, B) → truecolor
+- HSL: hsl(H, S%, L%) → truecolor via hslToRGB conversion
+- Truecolor format: \x1b[38;2;R;G;Bm; each channel clamped to [0,255]
+- Reset code: \x1b[0m placed after each colored glyph segment
+- WrapWithColor(s, ansiStart string) string → ansiStart + s + "\x1b[0m"
+    short-circuits on empty s or empty ansiStart (no invisible escape pairs)
+- buildColorMask(s, sub []rune, enableColor bool) []bool
+    empty sub → all positions true (whole string colored)
+    case-sensitive substring scan
+- buildPerRuneANSI(s []rune, rules []ColorRule) []string
+    iterates rules in order; last matching rule wins on overlapping substrings
+- No external packages — standard library only
+- Requires: TASK 05 complete
+
+FILES TO CREATE/MODIFY:
+- internal/render/colorizer.go
+- internal/render/render_test.go (extend)
+
+ACCEPTANCE CRITERIA / TEST CASES:
+- [CLI]: go run . --color=red "Hello" → full string in red ANSI
+- [CLI]: go run . --color=orange GuYs "HeY GuYs" → only "GuYs" colored orange
+- [CLI]: go run . --color=#FF5733 "Hello" → truecolor 255,87,51
+- [CLI]: go run . --color=rgb(255,0,128) "Hi" → truecolor 255,0,128
+- [CLI]: go run . --color=hsl(0,100%,50%) "Hi" → equivalent red truecolor
+- [CLI]: go run . --color=invalidcolor "Hi" → warning to stderr, no color applied
+- [CLI]: go run . --color=red H --color=blue ello "Hello" → H=red, ello=blue
+
+DEFINITION OF DONE:
+- [ ] Core logic is fully implemented and executes without runtime errors.
+- [ ] Code is formatted according to project standards (gofmt).
+- [ ] Unit/Integration tests are written and passing.
+- [ ] Edge cases, invalid inputs, and error states are handled gracefully.
+- [ ] Documentation (inline comments, README, or API docs) has been updated.
+- [ ] Task execution verified in a local sandbox or staging environment.
+- [ ] Final results and learnings documented in README.md or a dedicated report file.
+- [ ] AI index log entries added to .ai/gtzimoka.ai.txt.

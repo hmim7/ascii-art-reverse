@@ -1,0 +1,56 @@
+TASK ID: TASK 05
+TITLE: Input Parser & Character Mapper
+ROLE: Core Parsing
+STATUS: TODO
+
+DESCRIPTION:
+Implement internal/render/parser.go and internal/render/mapper.go.
+Parser preprocesses the raw input string (escape sequences, CRLF, tabs)
+then splits on newlines and filters to printable ASCII. Mapper wraps the
+banner map in an O(1) closure used by the render pipeline for every rune.
+
+REQUIREMENTS:
+parser.go:
+- ParseInput(input string) []string: preprocess → Split("\n") → filterASCII each part
+- preprocess(s string) string:
+    \r\n and \r → \n (CRLF normalization)
+    \n (backslash-n literal) → real newline
+    \\n → literal backslash + newline
+    \t (backslash-t literal) → three spaces
+    \\t → literal backslash + three spaces
+    \\ (other runs) → single backslash
+    real tab character → three spaces
+- filterASCII(s string) string: keep only runes in [32, 126]
+
+mapper.go:
+- Mapper(bannerMap map[rune][]string) func(rune) []string
+- Out-of-range rune (<32 or >126) → 8 empty strings
+- Rune missing from map → 8 empty strings (defensive)
+- No external packages — standard library only
+- Requires: TASK 04 complete
+
+FILES TO CREATE/MODIFY:
+- internal/render/parser.go
+- internal/render/mapper.go
+- internal/render/render_test.go
+
+ACCEPTANCE CRITERIA / TEST CASES:
+- [CLI]: ParseInput("Hello\nWorld") → ["Hello", "World"]
+- [CLI]: ParseInput("Hello\\nWorld") → ["Hello", "World"] (literal \n → newline)
+- [CLI]: ParseInput("Hello\\\\nWorld") → ["Hello\", "World"] (\\n → backslash + newline)
+- [CLI]: ParseInput("He\tllo") → ["He   llo"] (tab → 3 spaces)
+- [CLI]: ParseInput("") → [""]
+- [CLI]: ParseInput("\n") → ["", ""]
+- [CLI]: ParseInput("Hello\n\nWorld") → ["Hello", "", "World"]
+- [CLI]: filterASCII("héllo") → "llo" (non-ASCII dropped)
+- [CLI]: Mapper closure returns 8 lines for 'A', 8 empty strings for rune(0)
+
+DEFINITION OF DONE:
+- [ ] Core logic is fully implemented and executes without runtime errors.
+- [ ] Code is formatted according to project standards (gofmt).
+- [ ] Unit/Integration tests are written and passing.
+- [ ] Edge cases, invalid inputs, and error states are handled gracefully.
+- [ ] Documentation (inline comments, README, or API docs) has been updated.
+- [ ] Task execution verified in a local sandbox or staging environment.
+- [ ] Final results and learnings documented in README.md or a dedicated report file.
+- [ ] AI index log entries added to .ai/edamaski.ai.txt.

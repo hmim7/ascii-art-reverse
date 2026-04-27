@@ -1,0 +1,43 @@
+TASK ID: TASK 03
+TITLE: Error & Warning Strings (errs.go)
+ROLE: CLI Architecture
+STATUS: TODO
+
+DESCRIPTION:
+Implement internal/cli/errs.go — the single source of truth for every
+user-facing string in the binary. All UsageXxx constants, all Warn* helpers,
+Fatal, SelectUsage, and EmitWarnings live here. No usage string or warning
+message appears anywhere else in the codebase. This prevents the string-drift
+bug where the same message gets slightly mutated in multiple files.
+
+REQUIREMENTS:
+- UsageBasic, UsageColor, UsageOutput, UsageAlign, UsageReverse constants
+- Fatal(usage string): prints to stderr + os.Exit(1)
+- SelectUsage(ParsedArgs) string: picks correct constant from parsed flag context
+- WarnInvalidColor, WarnInvalidOutputFlag, WarnInvalidAlignFlag
+- WarnOutputRedirected(new, old), WarnAlignOverridden(old, new)
+- EmitWarnings(ParsedArgs): iterates args, fires appropriate Warn* per flag
+- All warnings print to stderr; all are non-fatal
+- Exact strings match sources/ audit requirements
+- Requires: TASK 02 complete (imports ParsedArgs from flags.go)
+
+FILES TO CREATE/MODIFY:
+- internal/cli/errs.go
+- internal/cli/cli_test.go (extend)
+
+ACCEPTANCE CRITERIA / TEST CASES:
+- [CLI]: --color red "hi" → stderr: Usage: go run . [OPTION] [STRING]\n\nEX: go run . --color=<color> <substring to be colored> "something"
+- [CLI]: --output test.txt "hi" → stderr: Usage: go run . [OPTION] [STRING] [BANNER]\n\nEX: go run . --output=<fileName.txt> something standard
+- [CLI]: --align right "hi" → stderr: Usage: go run . [OPTION] [STRING] [BANNER]\n\nExample: go run . --align=right something standard
+- [CLI]: --reverse example.txt → stderr: Usage: go run . [OPTION]\n\nEX: go run . --reverse=<fileName>
+- [CLI]: invalid color value → stderr: warning: invalid color "<val>", rendering without color
+
+DEFINITION OF DONE:
+- [ ] Core logic is fully implemented and executes without runtime errors.
+- [ ] Code is formatted according to project standards (gofmt).
+- [ ] Unit/Integration tests are written and passing.
+- [ ] Edge cases, invalid inputs, and error states are handled gracefully.
+- [ ] Documentation (inline comments, README, or API docs) has been updated.
+- [ ] Task execution verified in a local sandbox or staging environment.
+- [ ] Final results and learnings documented in README.md or a dedicated report file.
+- [ ] AI index log entries added to .ai/hmim.ai.txt.

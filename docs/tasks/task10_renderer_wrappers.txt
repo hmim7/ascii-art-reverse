@@ -1,0 +1,44 @@
+TASK ID: TASK 10
+TITLE: Renderer Wrappers & ColorRule Type
+ROLE: Render Engineering
+STATUS: TODO
+
+DESCRIPTION:
+Implement internal/render/renderer.go. Defines the ColorRule struct and a
+set of thin public entry-point wrappers — each delegates directly to
+RenderAlignedWithColorRules with sensible defaults. These wrappers form the
+public API surface of the render package; main.go calls only one of them.
+
+REQUIREMENTS:
+- ColorRule struct: ANSIStart string, Substring string
+- All six wrappers delegate to RenderAlignedWithColorRules (from alignment.go):
+    Render(w, segs, m)                            → align="left", width=0
+    RenderWithColor(w, segs, m, ansi, sub)         → single ColorRule, left, width=0
+    RenderWithColorRules(w, segs, m, rules)        → left, width=0
+    RenderAligned(w, segs, m, align, width)        → no color rules
+    RenderAlignedWithColor(w, segs, m, ansi, sub, align, width) → single rule
+    RenderAlignedWithColorRules(w, segs, m, rules, align, width) → full pipeline
+- cli.BuildColorRules([]cli.RawColorRule) []render.ColorRule lives in
+  internal/cli/flags.go (resolves ANSI, warns on invalid, returns []ColorRule)
+- No external packages — standard library only
+- Requires: TASK 08 complete
+
+FILES TO CREATE/MODIFY:
+- internal/render/renderer.go
+- internal/render/render_test.go (extend)
+
+ACCEPTANCE CRITERIA / TEST CASES:
+- [CLI]: Render called with empty rules → no ANSI codes in output
+- [CLI]: RenderWithColor called with ansi="" → no color (short-circuit)
+- [CLI]: All 6 wrappers compile and produce correct output for "Hello" standard
+- [CLI]: ColorRule{ANSIStart:"", Substring:""} → no wrapping applied
+
+DEFINITION OF DONE:
+- [ ] Core logic is fully implemented and executes without runtime errors.
+- [ ] Code is formatted according to project standards (gofmt).
+- [ ] Unit/Integration tests are written and passing.
+- [ ] Edge cases, invalid inputs, and error states are handled gracefully.
+- [ ] Documentation (inline comments, README, or API docs) has been updated.
+- [ ] Task execution verified in a local sandbox or staging environment.
+- [ ] Final results and learnings documented in README.md or a dedicated report file.
+- [ ] AI index log entries added to .ai/kchatzian.ai.txt.

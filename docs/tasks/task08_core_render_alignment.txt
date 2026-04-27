@@ -1,0 +1,56 @@
+TASK ID: TASK 08
+TITLE: Core Render Pipeline & All Alignment Modes
+ROLE: Render Engineering
+STATUS: TODO
+
+DESCRIPTION:
+Implement the full render + alignment pipeline in internal/render/alignment.go.
+This is the most complex module: it ties together the mapper, colorizer, and
+terminal width into a single render pass that supports left, right, center, and
+justify alignment. Every text segment produces exactly 8 output lines; every
+empty segment produces exactly 1 blank line.
+
+REQUIREMENTS:
+- visibleWidth(s string) int: strip \x1b[…m CSI sequences; count remaining bytes
+- padLine(line, align string, width int) string:
+    "right"  → left-pad with (width − visibleWidth) spaces
+    "center" → left-pad with (width − visibleWidth)/2 spaces
+    "left"   → unchanged
+- alignRenderedLines(lines []string, align string, width int) []string
+- extractWordIndices(runes []rune) [][]int: split on space ' ' only
+- justifyRenderedSegment(...) []string:
+    gaps = len(words)−1; totalGapWidth = width − totalWordWidth
+    baseGap = totalGapWidth/gaps; remainder = totalGapWidth%gaps
+    first remainder gaps get baseGap+1 spaces; rest get baseGap
+    fallback to 1-space gap when width ≤ totalWordWidth or gaps ≤ 0
+- buildRuneParts(runes, getASCII, perRuneANSI) [][]string
+- joinRuneParts(runeParts [][]string) []string (for left/right/center)
+- renderSegment(seg, getASCII, rules, align, width) []string
+- RenderAlignedWithColorRules(writer, segments, bannerMap, rules, align, width)
+    empty segment → fmt.Fprintln(writer) (one blank line)
+    non-empty → renderSegment → write 8 lines each with fmt.Fprintln
+- No external packages — standard library only
+- Requires: TASK 06 + TASK 07 complete
+
+FILES TO CREATE/MODIFY:
+- internal/render/alignment.go (complete)
+- internal/render/render_test.go (extend)
+
+ACCEPTANCE CRITERIA / TEST CASES:
+- [CLI]: go run . --align=right "left" standard → right-padded output
+- [CLI]: go run . --align=left "right" standard → no padding (default)
+- [CLI]: go run . --align=center "hello" shadow → centered output
+- [CLI]: go run . --align=justify "1 Two 4" shadow → words span full width
+- [CLI]: go run . --align=justify "single" standard → fallback to left (1 word)
+- [CLI]: go run . "Hello\n\nWorld" → Hello (8 lines) + blank line + World (8 lines)
+- [CLI]: go run . --color=red H --align=center "Hello" → color + center combined
+
+DEFINITION OF DONE:
+- [ ] Core logic is fully implemented and executes without runtime errors.
+- [ ] Code is formatted according to project standards (gofmt).
+- [ ] Unit/Integration tests are written and passing.
+- [ ] Edge cases, invalid inputs, and error states are handled gracefully.
+- [ ] Documentation (inline comments, README, or API docs) has been updated.
+- [ ] Task execution verified in a local sandbox or staging environment.
+- [ ] Final results and learnings documented in README.md or a dedicated report file.
+- [ ] AI index log entries added to .ai/gtzimoka.ai.txt.

@@ -1,0 +1,55 @@
+TASK ID: TASK 13
+TITLE: CLI Orchestrator (main.go)
+ROLE: CLI Architecture
+STATUS: TODO
+
+DESCRIPTION:
+Implement main.go as a thin orchestrator: ≤ 60 lines, no business logic.
+Calls ClassifyArgs once, dispatches to the correct pipeline (reverse, stdin,
+or render), and handles top-level errors. All string output is delegated to
+errs.go; all I/O is delegated to output/; all rendering to render/.
+main.go imports from all five internal packages but contains zero flag-parsing
+or rendering logic of its own.
+
+REQUIREMENTS:
+- package main; imports: cli, banner, output, render, reverse (all internal/)
+- Call cli.ClassifyArgs(os.Args[1:]) once
+- Emit cli.Fatal(cli.SelectUsage(args)) if unknownFlags or malformed with no valid flags
+- Call cli.EmitWarnings(args) for warnings alongside valid flags
+- Resolve banner name from args.Positional (default "standard")
+- Call banner.Load(bannerName); handle error with os.Exit(1)
+- Reverse branch: reverse.Run → fmt.Println → return
+- Output branch: output.GetWriter(args.OutputValue); defer file.Close()
+- Input: args.Positional[0] or cli.ReadStdin() if StdinMode
+- segments := render.ParseInput(input)
+- Gopher check: render.ShouldRenderGopher → render.RenderGopher → return
+- rules := cli.BuildColorRules(args.ColorRules)
+- width := render.ResolveWidth(args.OutputValue != "")
+- render.RenderAlignedWithColorRules(writer, segments, bannerMap, rules, align, width)
+- Hard limit: ≤ 60 lines including package declaration and imports
+- No external packages — standard library only
+- Requires: ALL previous tasks complete
+
+FILES TO CREATE/MODIFY:
+- main.go
+
+ACCEPTANCE CRITERIA / TEST CASES:
+- [CLI]: go run . "Hello World" standard → correct art to stdout
+- [CLI]: go run . --color=red "Hello" → colored art to stdout
+- [CLI]: go run . --align=center "hello" shadow → centered art
+- [CLI]: go run . --output=test.txt "hello" → file created
+- [CLI]: go run . --reverse=example00.txt → Hello World
+- [CLI]: go run . --stdin shadow (with stdin input) → correct art
+- [CLI]: go run . --unknown "hi" → usage message + exit 1
+- [CLI]: go run . → usage message + exit 1 (missing string)
+- [CLI]: wc -l main.go → ≤ 60
+
+DEFINITION OF DONE:
+- [ ] Core logic is fully implemented and executes without runtime errors.
+- [ ] Code is formatted according to project standards (gofmt).
+- [ ] Unit/Integration tests are written and passing.
+- [ ] Edge cases, invalid inputs, and error states are handled gracefully.
+- [ ] Documentation (inline comments, README, or API docs) has been updated.
+- [ ] Task execution verified in a local sandbox or staging environment.
+- [ ] Final results and learnings documented in README.md or a dedicated report file.
+- [ ] AI index log entries added to .ai/hmim.ai.txt.

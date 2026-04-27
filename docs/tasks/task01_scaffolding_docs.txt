@@ -1,0 +1,49 @@
+TASK ID: TASK 01
+TITLE: Repository Scaffolding & Documentation
+ROLE: Project Setup & DevOps
+STATUS: DONE
+
+DESCRIPTION:
+Initialize the repository structure following the setupAGENTS.md protocol.
+This includes the .ai/ AI logging directory, docs/ documentation directory,
+and .tasks/ task tracking directory. Also covers the root README.md and
+all project documentation files derived from the sources/ specifications.
+
+REQUIREMENTS:
+- .ai/ directory with per-member AI log files (hmim, edamaski, gtzimoka, kchatzian)
+- .ai/AGENTS.md and .ai/README.md filled from templates
+- docs/ with universal templates and project-specific cases/
+- .tasks/ with all task cards following the §7.4 format
+- Root README.md from the §7.2 boilerplate
+- Requires: git already initialized, go.mod created manually by team lead
+
+FILES TO CREATE/MODIFY:
+- .ai/hmim.ai.txt
+- .ai/AGENTS.md
+- .ai/README.md
+- docs/PRD_Template.md
+- docs/audit-cases_universal.md
+- docs/error-cases_universal.md
+- docs/edge-cases_universal.md
+- docs/golden-tests_universal.md
+- docs/cases/audit_cases.md
+- docs/cases/error_cases.md
+- docs/cases/edge_cases.md
+- docs/cases/golden-tests.md
+- .tasks/task01_scaffolding_docs.txt ... task13_orchestrator.txt
+- README.md
+
+ACCEPTANCE CRITERIA / TEST CASES:
+- [Structure]: All directories exist with correct names
+- [Docs]: Each docs/cases/ file covers its feature area from sources/
+- [AI Log]: hmim.ai.txt has at least one dated log entry
+
+DEFINITION OF DONE:
+- [x] Core logic is fully implemented and executes without runtime errors.
+- [x] Code is formatted according to project standards (e.g., gofmt).
+- [ ] Unit/Integration tests are written and passing.
+- [x] Edge cases, invalid inputs, and error states are handled gracefully.
+- [x] Documentation (inline comments, README, or API docs) has been updated.
+- [x] Task execution verified in a local sandbox or staging environment.
+- [x] Final results and learnings documented in README.md or a dedicated report file.
+- [x] AI index log entries added to .ai/hmim.ai.txt.
