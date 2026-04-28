@@ -50,7 +50,9 @@ func load(name string, allowFallback bool) (map[rune][]string, error) {
 		return nil, fmt.Errorf("banner %q: %w", clean, err)
 	}
 
-	lines := strings.Split(string(data), "\n")
+	// Normalize line endings to handle CRLF (\r\n) correctly
+	content := strings.ReplaceAll(string(data), "\r\n", "\n")
+	lines := strings.Split(content, "\n")
 	if len(lines) > 0 && lines[len(lines)-1] == "" {
 		lines = lines[:len(lines)-1]
 	}
