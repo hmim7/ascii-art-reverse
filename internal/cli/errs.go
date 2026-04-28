@@ -22,15 +22,50 @@ func Fatal(usage string) {
 
 // SelectUsage picks the correct UsageXxx constant based on which valid flag
 // was present in args. Falls back to UsageBasic when no flag is recognized.
+// Priority order: Reverse > Output > Align > Color > Basic.
 func SelectUsage(args ParsedArgs) string {
-	// TODO(task03): implement selection logic
+	hasMal := func(cat string) bool {
+		for _, f := range args.Malformed {
+			if f.Category == cat {
+				return true
+			}
+		}
+		return false
+	}
+	if args.ReverseValue != "" || hasMal("reverse") {
+		return UsageReverse
+	}
+	if args.OutputValue != "" || hasMal("output") || hasMal("dup-output") {
+		return UsageOutput
+	}
+	if args.AlignValue != "" || hasMal("align") || hasMal("dup-align") {
+		return UsageAlign
+	}
+	if len(args.ColorRules) > 0 || hasMal("color") {
+		return UsageColor
+	}
 	return UsageBasic
 }
 
 // EmitWarnings iterates args and fires the appropriate Warn* helper for
 // each invalid or duplicate flag. All warnings are non-fatal.
 func EmitWarnings(args ParsedArgs) {
-	// TODO(task03): implement warning dispatch
+	for _, f := range args.Malformed {
+		switch f.Category {
+		case "dup-output":
+			// Raw = "--output=<old_value>"; strip prefix to get old value.
+			WarnOutputRedirected(args.OutputValue, f.Raw[9:])
+		case "dup-align":
+			// Raw = old align value string.
+			WarnAlignOverridden(f.Raw, args.AlignValue)
+		case "output":
+			WarnInvalidOutputFlag(f.Raw)
+		case "align":
+			WarnInvalidAlignFlag(f.Raw)
+		case "color":
+			WarnInvalidColor(f.Raw)
+		}
+	}
 }
 
 func WarnInvalidColor(val string) {
