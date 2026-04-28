@@ -21,6 +21,10 @@ func main() {
 	}
 	cli.EmitWarnings(args)
 
+	if len(args.Positional) > 2 {
+		cli.Fatal(cli.UsageBasic)
+	}
+
 	bannerName := "standard"
 	if len(args.Positional) == 2 {
 		bannerName = args.Positional[1]
