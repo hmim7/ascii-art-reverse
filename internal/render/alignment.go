@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"strings"
 )
 
 // DetectTerminalWidth returns the terminal column width using three sources
@@ -29,33 +30,126 @@ func ResolveWidth(usingFileOutput bool) int {
 	return DetectTerminalWidth()
 }
 
+// visibleWidth counts the printable byte width of s, ignoring ANSI CSI sequences.
 func visibleWidth(s string) int {
-	// TODO(task08): strip \x1b[…m CSI sequences; count remaining bytes
-	return len(s)
+	width := 0
+	i := 0
+	for i < len(s) {
+		if s[i] == '\x1b' && i+1 < len(s) && s[i+1] == '[' {
+			i += 2
+			for i < len(s) && s[i] != 'm' {
+				i++
+			}
+			if i < len(s) {
+				i++ // consume 'm'
+			}
+			continue
+		}
+		width++
+		i++
+	}
+	return width
 }
 
 func padLine(line, align string, width int) string {
-	// TODO(task08): implement right / center padding; left returns unchanged
+	if align == "left" || align == "justify" || align == "" {
+		return line
+	}
+	vw := visibleWidth(line)
+	pad := width - vw
+	if pad <= 0 {
+		return line
+	}
+	switch align {
+	case "right":
+		return strings.Repeat(" ", pad) + line
+	case "center":
+		return strings.Repeat(" ", pad/2) + line
+	}
 	return line
 }
 
 func alignRenderedLines(lines []string, align string, width int) []string {
-	// TODO(task08): apply padLine to each line
-	return lines
+	result := make([]string, len(lines))
+	for i, l := range lines {
+		result[i] = padLine(l, align, width)
+	}
+	return result
 }
 
+// extractWordIndices returns [{start,end}, ...] index pairs for each word in runes,
+// splitting on space characters only.
 func extractWordIndices(runes []rune) [][]int {
-	// TODO(task08): split on ' ' only; return slice of index-slices per word
-	return nil
+	var words [][]int
+	i := 0
+	for i < len(runes) {
+		for i < len(runes) && runes[i] == ' ' {
+			i++
+		}
+		if i >= len(runes) {
+			break
+		}
+		start := i
+		for i < len(runes) && runes[i] != ' ' {
+			i++
+		}
+		words = append(words, []int{start, i})
+	}
+	return words
 }
 
 func justifyRenderedSegment(runes []rune, get func(rune) []string, perRuneANSI []string, width int) []string {
-	// TODO(task08): gap distribution: baseGap=total/gaps; remainder=total%gaps
-	return nil
+	wordIndices := extractWordIndices(runes)
+	if len(wordIndices) <= 1 {
+		// Single word: fall back to left alignment.
+		parts := buildRuneParts(runes, get, perRuneANSI)
+		return joinRuneParts(parts)
+	}
+
+	// Sum the visual width of all non-space glyphs.
+	contentWidth := 0
+	for _, r := range runes {
+		if r != ' ' {
+			lines := get(r)
+			if len(lines) > 0 {
+				contentWidth += len(lines[0])
+			}
+		}
+	}
+
+	gaps := len(wordIndices) - 1
+	totalSpace := width - contentWidth
+	if totalSpace < 0 {
+		totalSpace = 0
+	}
+	baseGap := totalSpace / gaps
+	remainder := totalSpace % gaps
+
+	output := make([]string, 8)
+	for wi, wr := range wordIndices {
+		// Append each glyph in the word.
+		for ri := wr[0]; ri < wr[1]; ri++ {
+			glyphs := get(runes[ri])
+			for row := 0; row < 8 && row < len(glyphs); row++ {
+				output[row] += WrapWithColor(glyphs[row], perRuneANSI[ri])
+			}
+		}
+		// Append gap spaces between words (first remainder gaps get +1).
+		if wi < gaps {
+			spaces := baseGap
+			if wi < remainder {
+				spaces++
+			}
+			gap := strings.Repeat(" ", spaces)
+			for row := 0; row < 8; row++ {
+				output[row] += gap
+			}
+		}
+	}
+	return output
 }
 
 func buildRuneParts(runes []rune, get func(rune) []string, perRuneANSI []string) [][]string {
-	// TODO(task08): for each rune fetch 8-line glyph; wrap with WrapWithColor
 	parts := make([][]string, len(runes))
 	for i, r := range runes {
 		lines := get(r)
@@ -71,7 +165,6 @@ func buildRuneParts(runes []rune, get func(rune) []string, perRuneANSI []string)
 }
 
 func joinRuneParts(runeParts [][]string) []string {
-	// TODO(task08): concatenate rune columns per row → 8 complete lines
 	lines := make([]string, 8)
 	for _, cols := range runeParts {
 		for row := 0; row < 8 && row < len(cols); row++ {
@@ -82,9 +175,11 @@ func joinRuneParts(runeParts [][]string) []string {
 }
 
 func renderSegment(seg string, get func(rune) []string, rules []ColorRule, align string, width int) []string {
-	// TODO(task08): full per-segment render → color → align pipeline
 	runes := []rune(seg)
 	ansi := buildPerRuneANSI(runes, rules)
+	if align == "justify" {
+		return justifyRenderedSegment(runes, get, ansi, width)
+	}
 	parts := buildRuneParts(runes, get, ansi)
 	lines := joinRuneParts(parts)
 	return alignRenderedLines(lines, align, width)
