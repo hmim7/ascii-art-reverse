@@ -1,20 +1,98 @@
 package banner
 
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
 // Load reads the banner font file for the given name and returns a
 // map[rune][]string for O(1) character lookup. Falls back to "standard"
 // with a stderr warning on any error.
 func Load(name string) (map[rune][]string, error) {
-	// TODO(task04): implement sanitizeName, isLeadingSeparator, file reading,
-	// 855-line validation, leading/trailing separator dispatch, and map build.
-	return nil, nil
+	return load(name, true)
+}
+
+// bannerDir resolves the banner/ directory by walking up from the current
+// working directory until it finds a banner/ folder containing standard.txt.
+// This allows the loader to work correctly from any package directory.
+func bannerDir() string {
+	dir, err := os.Getwd()
+	if err != nil {
+		return "banner"
+	}
+	for {
+		// Confirm by checking for standard.txt, not just the directory name.
+		probe := filepath.Join(dir, "banner", "standard.txt")
+		if _, err := os.Stat(probe); err == nil {
+			return filepath.Join(dir, "banner")
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	return "banner"
+}
+
+func load(name string, allowFallback bool) (map[rune][]string, error) {
+	clean := sanitizeName(name)
+	path := filepath.Join(bannerDir(), clean+".txt")
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if allowFallback && clean != "standard" {
+			fmt.Fprintf(os.Stderr, "warning: banner %q not found, default banner \"standard\" applied\n", clean)
+			return load("standard", false)
+		}
+		return nil, fmt.Errorf("banner %q: %w", clean, err)
+	}
+
+	lines := strings.Split(string(data), "\n")
+	if len(lines) > 0 && lines[len(lines)-1] == "" {
+		lines = lines[:len(lines)-1]
+	}
+	if len(lines) != 855 {
+		if allowFallback && clean != "standard" {
+			fmt.Fprintf(os.Stderr, "warning: banner %q invalid (expected 855 lines), default banner \"standard\" applied\n", clean)
+			return load("standard", false)
+		}
+		return nil, fmt.Errorf("banner %q: expected 855 lines, got %d", clean, len(lines))
+	}
+
+	leading := isLeadingSeparator(lines)
+	m := make(map[rune][]string, 95)
+	for r := 32; r <= 126; r++ {
+		start := (r - 32) * 9
+		var src []string
+		if leading {
+			src = lines[start+1 : start+9]
+		} else {
+			src = lines[start : start+8]
+		}
+		art := make([]string, 8)
+		copy(art, src)
+		m[rune(r)] = art
+	}
+	return m, nil
 }
 
 func sanitizeName(name string) string {
-	// TODO(task04): filepath.Base → lowercase → strip .txt → [a-z0-9\-_] filter
-	return name
+	base := strings.ToLower(filepath.Base(name))
+	base = strings.TrimSuffix(base, ".txt")
+	return strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
+			return r
+		}
+		return -1
+	}, base)
 }
 
 func isLeadingSeparator(lines []string) bool {
-	// TODO(task04): inspect ! block lines 9–17 to detect separator format
-	return true
+	// lines[9] is the first line of the '!' (char 33) block.
+	// Leading separator format: lines[9] is the separator (empty/blank).
+	// Trailing separator format (doom): lines[9] is the first art line of '!'.
+	return strings.TrimSpace(lines[9]) == ""
 }
