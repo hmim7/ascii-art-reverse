@@ -1,7 +1,7 @@
 TASK ID: TASK 13
 TITLE: CLI Orchestrator (main.go)
 ROLE: CLI Architecture
-STATUS: TODO
+STATUS: DONE
 
 DESCRIPTION:
 Implement main.go as a thin orchestrator: ≤ 60 lines, no business logic.

@@ -1,7 +1,7 @@
 TASK ID: TASK 02
 TITLE: CLI Flag Types & Single-Pass Classifier
 ROLE: CLI Architecture
-STATUS: TODO
+STATUS: DONE
 
 DESCRIPTION:
 Implement internal/cli/flags.go containing the shared flag type definitions

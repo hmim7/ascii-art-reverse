@@ -41,7 +41,7 @@ ACCEPTANCE CRITERIA / TEST CASES:
 DEFINITION OF DONE:
 - [x] Core logic is fully implemented and executes without runtime errors.
 - [x] Code is formatted according to project standards (e.g., gofmt).
-- [ ] Unit/Integration tests are written and passing.
+- [x] Unit/Integration tests are written and passing.
 - [x] Edge cases, invalid inputs, and error states are handled gracefully.
 - [x] Documentation (inline comments, README, or API docs) has been updated.
 - [x] Task execution verified in a local sandbox or staging environment.

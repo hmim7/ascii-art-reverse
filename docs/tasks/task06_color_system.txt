@@ -1,7 +1,8 @@
 TASK ID: TASK 06
 TITLE: Color System (ANSI / Hex / RGB / HSL)
 ROLE: Color Systems
-STATUS: TODO
+STATUS: IN PROCESS
+
 
 DESCRIPTION:
 Implement internal/render/colorizer.go. Converts any supported color notation

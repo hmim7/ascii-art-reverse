@@ -1,7 +1,7 @@
 TASK ID: TASK 05
 TITLE: Input Parser & Character Mapper
 ROLE: Core Parsing
-STATUS: TODO
+STATUS: IN PROCESS
 
 DESCRIPTION:
 Implement internal/render/parser.go and internal/render/mapper.go.

@@ -1,7 +1,7 @@
 TASK ID: TASK 12
 TITLE: Reverse Feature (ASCII Art → Text)
 ROLE: Reverse Engineering
-STATUS: TODO
+STATUS: IN PROCESS
 
 DESCRIPTION:
 Implement internal/reverse/reverser.go. Reads a file containing ASCII art

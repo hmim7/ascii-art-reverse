@@ -1,7 +1,7 @@
 TASK ID: TASK 04
 TITLE: Banner File Loader
 ROLE: Banner Engineering
-STATUS: TODO
+STATUS: DONE
 
 DESCRIPTION:
 Implement internal/banner/loader.go. Reads a banner font file, validates it,
