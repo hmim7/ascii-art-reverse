@@ -13,28 +13,17 @@ import (
 
 func main() {
 	args := cli.ClassifyArgs(os.Args[1:])
-
-	if len(args.UnknownFlags) > 0 ||
-		(len(args.Malformed) > 0 && args.OutputValue == "" &&
-			args.AlignValue == "" && args.ReverseValue == "" && len(args.ColorRules) == 0) {
-		cli.Fatal(cli.SelectUsage(args))
-	}
 	cli.EmitWarnings(args)
+	cli.ValidateOrFatal(args)
+	cli.CheckPositionalsOrFatal(args)
 
-	if len(args.Positional) > 2 {
-		cli.Fatal(cli.UsageBasic)
-	}
-
-	bannerName := "standard"
-	if len(args.Positional) == 2 {
-		bannerName = args.Positional[1]
-	}
-
-	bannerMap, err := banner.Load(bannerName)
+	bannerName := cli.ResolveBannerName(args)
+	bannerMap, fallback, err := banner.Load(bannerName)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+	cli.HandleBannerFallbackOrFatal(fallback, bannerName)
 
 	if args.ReverseValue != "" {
 		result, err := reverse.Run(args.ReverseValue, bannerMap)
@@ -55,14 +44,7 @@ func main() {
 		defer file.Close()
 	}
 
-	input := ""
-	if len(args.Positional) > 0 {
-		input = args.Positional[0]
-	}
-	if args.StdinMode {
-		input = cli.ReadStdin()
-	}
-
+	input := cli.ResolveInput(args)
 	segments := render.ParseInput(input)
 	if render.ShouldRenderGopher(input, segments) {
 		render.RenderGopher(writer)
