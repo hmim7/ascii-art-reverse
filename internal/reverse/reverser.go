@@ -15,7 +15,8 @@ func Run(filePath string, bannerMap map[rune][]string) (string, error) {
 		return "", fmt.Errorf("reverse: cannot read %q: %w", filePath, err)
 	}
 
-	lines := strings.Split(string(data), "\n")
+	content := strings.ReplaceAll(string(data), "\r\n", "\n")
+	lines := strings.Split(content, "\n")
 	// Strip trailing empty lines left by the final newline.
 	for len(lines) > 0 && lines[len(lines)-1] == "" {
 		lines = lines[:len(lines)-1]
