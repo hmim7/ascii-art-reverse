@@ -23,7 +23,8 @@ go build -o ascii-art-reverse .
 
 ### Part 1: CLI Usage
 ```bash
-# Standard Usage
+# Standard Usage (defaults to standard banner)
+go run . "Hello World"
 go run . "Hello World" standard
 
 # Color with Substring Targeting
@@ -36,21 +37,31 @@ go run . --align=center "Centered Art"
 go run . --output=output.txt "Persisted Art"
 
 # Reverse Engineering
-go run . --reverse=example.txt standard
+go run . --reverse=example.txt
+go run . --reverse=example.txt shadow
 ```
+
+### Error Handling
+The CLI enforces strict flag validation and always exits with code 1 on bad input, printing the usage message that matches the first malformed flag in input order:
+
+| Scenario | Message |
+|---|---|
+| Invalid/missing flag value | Correct `Usage:` for that flag |
+| Unknown `--flag` | Hint to use `--` delimiter, then `UsageBasic` |
+| Too many positionals | `UsageBasic` (with hint if a known flag option is misplaced) |
+| Banner not found / invalid | Grey warning + `UsageBasic` |
+| Multiple malformed flags | Single consolidated warning listing all, then first-match usage |
 
 ## Implementation Details
 
-- **Architecture:** Refactored Modular Pipeline using the Go standard library only. Logic is decoupled into `cli`, `banner`, `render`, `output`, and `reverse` packages.
-- **Core Algorithm:** Uses a glyph-mapping system for generation and a greedy-scanning algorithm for the reverse feature. The reverse algorithm scans art columns to match signatures against a pre-loaded banner map.
-- **Special Features:** Supports multi-notation color (Named, Hex, RGB, HSL), intelligent banner separator detection, and a "Peeking Gopher" easter egg for non-ASCII inputs.
-- **Testing:** Comprehensive test suite including Table-Driven unit tests, Golden File integration tests, and race detection.
-- **Performance Benchmarks:** Optimized O(1) glyph lookup after initial banner load and efficient column-scanning in the reverse algorithm.
-
-## Error Handling
-
-### CLI Fallbacks
-- **Missing/Invalid Input:** Gracefully prints a specific usage message based on flag priority (Reverse > Output > Align > Color) and exits with status code 1.
+- **Architecture:** Modular pipeline using the Go standard library only. `main.go` is a pure orchestrator (≤60 lines); all decision logic lives in the `cli`, `banner`, `render`, `output`, and `reverse` packages.
+- **CLI parsing:** Single-pass `ClassifyArgs` routes every token into exactly one bucket (`Positional`, `ColorRules`, `Malformed`, `UnknownFlags`). Validation helpers (`ValidateOrFatal`, `CheckPositionalsOrFatal`, `HandleBannerFallbackOrFatal`) keep `main.go` free of guard logic.
+- **Color system:** `BuildColorRules` resolves multi-notation color strings (Named, Hex `#RRGGBB`, `rgb()`, `hsl()`) directly to `[]render.ColorRule` — no intermediate `[]interface{}` bridge.
+- **Rendering:** `Mapper` returns 8 empty strings for runes outside `[32, 126]`. `RenderAlignedWithColorRules` handles the all-empty special case so `""` produces no output and `"\n"` produces exactly one blank line.
+- **Banner loading:** Files are validated for exactly 855 lines. CRLF is normalized. Leading vs. trailing separator format is detected automatically. All 7 bundled banners are fully loaded and tested.
+- **Reverse algorithm:** Greedy column-scan matching art signatures against a pre-built inverse banner map. CRLF normalization applied before splitting. Supports all printable ASCII characters and multi-line art.
+- **Gopher easter egg:** `containsNonASCII` treats `\n`, `\t`, and `\` as neutral; any rune outside `[32, 126]` triggers the Peeking Gopher.
+- **Testing:** 40 passing unit tests across 5 packages including table-driven tests, golden-file round-trip tests for all 8 example files (+ shadow and multi-line), and targeted edge-case coverage.
 
 ## Project Structure
 ```plaintext
@@ -67,15 +78,34 @@ ascii-art-reverse
 │   └── golden-tests.md    # Reference I/O Pairs
 ├── .tasks/                # Agile Task Cards
 ├── banner/                # Source Font Files (.txt)
+│   ├── standard.txt
+│   ├── shadow.txt
+│   ├── doom.txt
+│   ├── block.txt
+│   ├── thinkertoy.txt
+│   ├── dancing.txt
+│   └── greek.txt
 ├── internal/
-│   ├── banner/            # Banner loading logic
-│   ├── cli/               # Flag parsing & Usage strings
-│   ├── output/            # I/O redirection abstraction
-│   ├── render/            # Rendering & Color pipeline
-│   └── reverse/           # Reverse reconstruction logic
-├── main.go                # Orchestrator
+│   ├── banner/            # Banner loading & validation
+│   ├── cli/               # Flag parsing, validation guards & usage strings
+│   ├── output/            # I/O writer abstraction
+│   ├── render/            # Rendering, color, alignment & glyph mapping
+│   └── reverse/           # Greedy-scan reverse reconstruction
+├── main.go                # Pure orchestrator (≤60 lines)
 └── README.md
 ```
+
+## Technical Documentation
+
+- **Data Validation:** Strict `--flag=value` syntax enforced. Banner files validated for exactly 855 lines; path traversal prevented via name sanitization. Invalid banners always fatal — no silent fallback.
+- **Warning consolidation:** All malformed flags in one session emit a single consolidated `warning: invalid <cats> flag(s) "<raw…>"` line, followed by individual warnings for duplicate flags, then any double-dash hints.
+- **Visual / Output Integrity:** ANSI escape sequences precisely injected to avoid color bleeding. Alignment pads based on visible (non-ANSI) width. Terminal width detected via `COLUMNS` env var → ioctl → fallback 80.
+- **Testing:**
+  ```bash
+  go test ./...
+  go test ./... -v
+  go vet ./...
+  ```
 
 ## Project Documentation References:
 
@@ -83,15 +113,6 @@ ascii-art-reverse
 - Golden Tests
 - Audit Cases
 - Edge Cases
-
-## Technical Documentation
-
-- **Data Validation:** Strict flag validation enforcing `--flag=value` syntax. Banner files are validated for exactly 855 lines and path traversal is prevented via sanitization.
-- **Visual / Output Integrity:** ANSI escape sequences are precisely injected to avoid "color bleeding." Alignment logic detects terminal width via the standard library.
-- **Testing:** The project includes a robust testing suite. Run the tests using:
-  ```bash
-  go test ./... -v -race
-  ```
 
 ---
 *This project is part of the Zone01 Campus curriculum. It is built and maintained according to the guidelines specified in the `.docs/` directory.*
