@@ -19,8 +19,15 @@ func TestParseInput_NewlineSplit(t *testing.T) {
 
 func TestParseInput_Empty(t *testing.T) {
 	got := render.ParseInput("")
-	if len(got) != 1 || got[0] != "" {
-		t.Errorf("expected [\"\"], got %v", got)
+	if len(got) != 0 {
+		t.Errorf("expected 0 segments, got %d", len(got))
+	}
+}
+
+func TestParseInput_OnlyNewline(t *testing.T) {
+	got := render.ParseInput("\\n")
+	if len(got) != 1 {
+		t.Errorf("expected 1 segment for single newline, got %d", len(got))
 	}
 }
 

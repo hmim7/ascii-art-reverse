@@ -187,8 +187,26 @@ func renderSegment(seg string, get func(rune) []string, rules []ColorRule, align
 
 // RenderAlignedWithColorRules is the core render entry point.
 // Empty segment → one blank line; non-empty → 8 lines.
+// Special case: when every segment is empty (blank-only input), write exactly
+// len(segs)-1 blank lines — one per \n character in the original input —
+// so that "" produces no output and "\n" produces exactly one blank line.
 func RenderAlignedWithColorRules(w io.Writer, segs []string, m map[rune][]string, rules []ColorRule, align string, width int) {
 	get := Mapper(m)
+
+	allEmpty := true
+	for _, s := range segs {
+		if s != "" {
+			allEmpty = false
+			break
+		}
+	}
+	if allEmpty {
+		for i := 0; i < len(segs)-1; i++ {
+			fmt.Fprintln(w)
+		}
+		return
+	}
+
 	for _, seg := range segs {
 		if seg == "" {
 			fmt.Fprintln(w)

@@ -7,10 +7,17 @@ import (
 	"strings"
 )
 
+// FallbackInfo is non-nil when Load fell back to the standard banner.
+type FallbackInfo struct {
+	Kind string // "not-found" | "invalid"
+	Name string // sanitized banner name that was attempted
+}
+
 // Load reads the banner font file for the given name and returns a
 // map[rune][]string for O(1) character lookup. Falls back to "standard"
-// with a stderr warning on any error.
-func Load(name string) (map[rune][]string, error) {
+// on any error; when a fallback occurs, FallbackInfo is returned so the
+// caller can decide how to report it.
+func Load(name string) (map[rune][]string, *FallbackInfo, error) {
 	return load(name, true)
 }
 
@@ -37,17 +44,16 @@ func bannerDir() string {
 	return "banner"
 }
 
-func load(name string, allowFallback bool) (map[rune][]string, error) {
+func load(name string, allowFallback bool) (map[rune][]string, *FallbackInfo, error) {
 	clean := sanitizeName(name)
 	path := filepath.Join(bannerDir(), clean+".txt")
 
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if allowFallback && clean != "standard" {
-			fmt.Fprintf(os.Stderr, "warning: banner %q not found, default banner \"standard\" applied\n", clean)
-			return load("standard", false)
+			return nil, &FallbackInfo{Kind: "not-found", Name: clean}, nil
 		}
-		return nil, fmt.Errorf("banner %q: %w", clean, err)
+		return nil, nil, fmt.Errorf("banner %q: %w", clean, err)
 	}
 
 	// Normalize line endings to handle CRLF (\r\n) correctly
@@ -58,10 +64,9 @@ func load(name string, allowFallback bool) (map[rune][]string, error) {
 	}
 	if len(lines) != 855 {
 		if allowFallback && clean != "standard" {
-			fmt.Fprintf(os.Stderr, "warning: banner %q invalid (expected 855 lines), default banner \"standard\" applied\n", clean)
-			return load("standard", false)
+			return nil, &FallbackInfo{Kind: "invalid", Name: clean}, nil
 		}
-		return nil, fmt.Errorf("banner %q: expected 855 lines, got %d", clean, len(lines))
+		return nil, nil, fmt.Errorf("banner %q: expected 855 lines, got %d", clean, len(lines))
 	}
 
 	leading := isLeadingSeparator(lines)
@@ -78,7 +83,7 @@ func load(name string, allowFallback bool) (map[rune][]string, error) {
 		copy(art, src)
 		m[rune(r)] = art
 	}
-	return m, nil
+	return m, nil, nil
 }
 
 func sanitizeName(name string) string {
