@@ -34,15 +34,3 @@ func RenderAlignedWithColor(w io.Writer, segs []string, m map[rune][]string, ans
 	RenderAlignedWithColorRules(w, segs, m, []ColorRule{{ANSIStart: ansi, Substring: sub}}, align, width)
 }
 
-// ToColorRules converts the opaque slice returned by cli.BuildColorRules into
-// []ColorRule. This bridge keeps main.go free of type-assertion boilerplate.
-// TODO(task10): replace with a typed conversion once cli imports render types.
-func ToColorRules(raw []interface{}) []ColorRule {
-	rules := make([]ColorRule, 0, len(raw))
-	for _, r := range raw {
-		if cr, ok := r.(ColorRule); ok {
-			rules = append(rules, cr)
-		}
-	}
-	return rules
-}

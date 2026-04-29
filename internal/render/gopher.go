@@ -23,9 +23,11 @@ func ShouldRenderGopher(text string, segments []string) bool {
 }
 
 func containsNonASCII(text string) bool {
-	// TODO(task11): skip \n \t \\; flag rune <32 or >126 as non-ASCII
 	for _, r := range text {
-		if r > 126 {
+		if r == '\n' || r == '\t' || r == '\\' {
+			continue
+		}
+		if r < 32 || r > 126 {
 			return true
 		}
 	}

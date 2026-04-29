@@ -53,5 +53,5 @@ func main() {
 
 	rules := cli.BuildColorRules(args.ColorRules)
 	width := render.ResolveWidth(args.OutputValue != "")
-	render.RenderAlignedWithColorRules(writer, segments, bannerMap, render.ToColorRules(rules), args.AlignValue, width)
+	render.RenderAlignedWithColorRules(writer, segments, bannerMap, rules, args.AlignValue, width)
 }

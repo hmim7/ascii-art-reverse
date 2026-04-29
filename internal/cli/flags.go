@@ -163,11 +163,10 @@ func ClassifyArgs(args []string) ParsedArgs {
 	return result
 }
 
-// BuildColorRules converts []RawColorRule into []render.ColorRule (wrapped as
-// []interface{} to avoid a direct import in main.go), resolving ANSI codes and
-// warning on invalid color values.
-func BuildColorRules(raw []RawColorRule) []interface{} {
-	result := make([]interface{}, 0, len(raw))
+// BuildColorRules converts []RawColorRule into []render.ColorRule, resolving
+// ANSI codes and warning on invalid color values.
+func BuildColorRules(raw []RawColorRule) []render.ColorRule {
+	result := make([]render.ColorRule, 0, len(raw))
 	for _, r := range raw {
 		ansi, ok := render.ColorToANSI(r.ColorValue)
 		if !ok {
