@@ -41,13 +41,27 @@ type ParsedArgs struct {
 // ClassifyArgs performs a single pass over args, routing every token into
 // exactly one bucket of ParsedArgs. No token is processed twice.
 func ClassifyArgs(args []string) ParsedArgs {
-	result := ParsedArgs{}
+	result := ParsedArgs{
+		Positional:   []string{},
+		ColorRules:   []RawColorRule{},
+		UnknownFlags: []FlagError{},
+		Malformed:    []FlagError{},
+	}
 
 	// countNonFlags returns the number of non-flag tokens in args[from:].
 	countNonFlags := func(from int) int {
 		n := 0
-		for _, a := range args[from:] {
-			if !strings.HasPrefix(a, "--") {
+		stopFlags := false
+		for j := from; j < len(args); j++ {
+			if stopFlags {
+				n++
+				continue
+			}
+			if args[j] == "--" && j < len(args)-1 && strings.HasPrefix(args[j+1], "--") {
+				stopFlags = true
+				continue
+			}
+			if !strings.HasPrefix(args[j], "--") {
 				n++
 			}
 		}
@@ -109,7 +123,23 @@ func ClassifyArgs(args []string) ParsedArgs {
 			}
 
 		case strings.HasPrefix(tok, "--reverse="):
-			result.ReverseValue = tok[10:]
+			val := tok[10:]
+			if result.ReverseValue != "" {
+				result.Malformed = append(result.Malformed, FlagError{
+					Raw:      "--reverse=" + result.ReverseValue,
+					Category: "dup-reverse",
+				})
+			}
+			result.ReverseValue = val
+
+		case tok == "--":
+			// Delimiter only if it precedes something that looks like a flag.
+			if i+1 < len(args) && strings.HasPrefix(args[i+1], "--") {
+				result.Positional = append(result.Positional, args[i+1:]...)
+				i = len(args) // Skip remaining arguments
+				continue
+			}
+			result.UnknownFlags = append(result.UnknownFlags, FlagError{Raw: tok, Category: "unknown"})
 
 		// Known flag names without proper =value syntax.
 		case strings.HasPrefix(tok, "--color"):
@@ -141,7 +171,7 @@ func BuildColorRules(raw []RawColorRule) []interface{} {
 	for _, r := range raw {
 		ansi, ok := render.ColorToANSI(r.ColorValue)
 		if !ok {
-			WarnInvalidColor(r.ColorValue)
+			WarnInvalidFlags([]FlagError{{Category: "color", Raw: "--color=" + r.ColorValue}})
 			continue
 		}
 		result = append(result, render.ColorRule{
@@ -156,4 +186,32 @@ func BuildColorRules(raw []RawColorRule) []interface{} {
 func ReadStdin() string {
 	data, _ := io.ReadAll(os.Stdin)
 	return strings.TrimRight(string(data), "\n")
+}
+
+// IsKnownFlagOption reports whether s starts with a recognized flag prefix.
+func IsKnownFlagOption(s string) bool {
+	return strings.HasPrefix(s, "--color") ||
+		strings.HasPrefix(s, "--output") ||
+		strings.HasPrefix(s, "--align") ||
+		strings.HasPrefix(s, "--reverse")
+}
+
+// ResolveBannerName returns the banner name from positional args, defaulting to "standard".
+func ResolveBannerName(args ParsedArgs) string {
+	if len(args.Positional) == 2 {
+		return args.Positional[1]
+	}
+	return "standard"
+}
+
+// ResolveInput returns the text to render: stdin content when StdinMode is set,
+// the first positional argument otherwise, or "" when neither is present.
+func ResolveInput(args ParsedArgs) string {
+	if args.StdinMode {
+		return ReadStdin()
+	}
+	if len(args.Positional) > 0 {
+		return args.Positional[0]
+	}
+	return ""
 }
