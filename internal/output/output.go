@@ -9,7 +9,7 @@ import (
 // GetWriter resolves the io.Writer for the render pipeline.
 //
 //   - outputPath == "" → returns (os.Stdout, nil, nil)
-//   - outputPath != "" → opens the file with O_WRONLY|O_CREATE|O_TRUNC, perm 0644
+//   - outputPath != "" → opens the file with O_WRONLY|O_CREATE|O_TRUNC, perm 0600
 //
 // The *os.File is returned separately so the caller can defer file.Close().
 // Always overwrites (O_TRUNC); appending is not supported.
@@ -18,7 +18,7 @@ func GetWriter(outputPath string) (io.Writer, *os.File, error) {
 	if outputPath == "" {
 		return os.Stdout, nil, nil
 	}
-	f, err := os.OpenFile(filepath.Clean(outputPath), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
+	f, err := os.OpenFile(filepath.Clean(outputPath), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
 	if err != nil {
 		return nil, nil, err
 	}

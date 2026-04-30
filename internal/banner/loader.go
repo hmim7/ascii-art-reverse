@@ -48,7 +48,7 @@ func load(name string, allowFallback bool) (map[rune][]string, *FallbackInfo, er
 	clean := sanitizeName(name)
 	path := filepath.Join(bannerDir(), clean+".txt")
 
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) // #nosec G304 — path built from sanitizeName (alphanumeric/-/_ only) + fixed bannerDir
 	if err != nil {
 		if allowFallback && clean != "standard" {
 			return nil, &FallbackInfo{Kind: "not-found", Name: clean}, nil

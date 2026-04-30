@@ -3,6 +3,7 @@ package reverse
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -10,7 +11,7 @@ import (
 // Run reads the ASCII art file at filePath, reconstructs the original
 // plain-text string using bannerMap, and returns it.
 func Run(filePath string, bannerMap map[rune][]string) (string, error) {
-	data, err := os.ReadFile(filePath)
+	data, err := os.ReadFile(filepath.Clean(filePath)) // #nosec G304 — user-specified input file, intentional
 	if err != nil {
 		return "", fmt.Errorf("reverse: cannot read %q: %w", filePath, err)
 	}
