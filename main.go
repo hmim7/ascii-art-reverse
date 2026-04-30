@@ -12,7 +12,11 @@ import (
 )
 
 func main() {
-	args := cli.ClassifyArgs(os.Args[1:])
+	var rawArgs []string
+	if len(os.Args) > 1 {
+		rawArgs = os.Args[1:]
+	}
+	args := cli.ClassifyArgs(rawArgs)
 	cli.EmitWarnings(args)
 	cli.ValidateOrFatal(args)
 	cli.CheckPositionalsOrFatal(args)
@@ -26,7 +30,8 @@ func main() {
 	cli.HandleBannerFallbackOrFatal(fallback, bannerName)
 
 	if args.ReverseValue != "" {
-		result, err := reverse.Run(args.ReverseValue, bannerMap)
+		var result string
+		result, err = reverse.Run(args.ReverseValue, bannerMap)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
@@ -41,7 +46,7 @@ func main() {
 		os.Exit(1)
 	}
 	if file != nil {
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 	}
 
 	input := cli.ResolveInput(args)
