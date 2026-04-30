@@ -38,129 +38,154 @@ type ParsedArgs struct {
 	Malformed    []FlagError
 }
 
+// classifier holds mutable state for a single ClassifyArgs pass.
+type classifier struct {
+	args          []string
+	result        ParsedArgs
+	alignExplicit bool
+}
+
+func newClassifier(args []string) *classifier {
+	return &classifier{
+		args: args,
+		result: ParsedArgs{
+			Positional:   []string{},
+			ColorRules:   []RawColorRule{},
+			UnknownFlags: []FlagError{},
+			Malformed:    []FlagError{},
+		},
+	}
+}
+
+// countNonFlags returns the number of non-flag tokens in args[from:].
+func (c *classifier) countNonFlags(from int) int {
+	n, stopFlags := 0, false
+	for j := from; j < len(c.args); j++ {
+		if stopFlags {
+			n++
+			continue
+		}
+		if c.args[j] == "--" && j < len(c.args)-1 && strings.HasPrefix(c.args[j+1], "--") {
+			stopFlags = true
+			continue
+		}
+		if !strings.HasPrefix(c.args[j], "--") {
+			n++
+		}
+	}
+	return n
+}
+
+func (c *classifier) parseColor(tok string, i int) int {
+	rule := RawColorRule{ColorValue: tok[8:]}
+	if i+1 < len(c.args) && !strings.HasPrefix(c.args[i+1], "--") && c.countNonFlags(i+2) > 0 {
+		rule.Substring = c.args[i+1]
+		i++
+	}
+	c.result.ColorRules = append(c.result.ColorRules, rule)
+	return i
+}
+
+func (c *classifier) parseOutput(tok string) {
+	val := tok[9:]
+	if !strings.HasSuffix(strings.ToLower(val), ".txt") || val == "" {
+		c.result.Malformed = append(c.result.Malformed, FlagError{Raw: tok, Category: "output"})
+		return
+	}
+	if c.result.OutputValue != "" {
+		c.result.Malformed = append(c.result.Malformed, FlagError{
+			Raw:      "--output=" + c.result.OutputValue,
+			Category: "dup-output",
+		})
+	}
+	c.result.OutputValue = val
+}
+
+func (c *classifier) parseAlign(tok string) {
+	val := tok[8:]
+	switch val {
+	case "left", "right", "center", "justify":
+		if c.alignExplicit {
+			c.result.Malformed = append(c.result.Malformed, FlagError{
+				Raw:      c.result.AlignValue,
+				Category: "dup-align",
+			})
+		}
+		c.result.AlignValue = val
+		c.alignExplicit = true
+	default:
+		c.result.Malformed = append(c.result.Malformed, FlagError{Raw: tok, Category: "align"})
+	}
+}
+
+func (c *classifier) parseReverse(tok string) {
+	val := tok[10:]
+	if c.result.ReverseValue != "" {
+		c.result.Malformed = append(c.result.Malformed, FlagError{
+			Raw:      "--reverse=" + c.result.ReverseValue,
+			Category: "dup-reverse",
+		})
+	}
+	c.result.ReverseValue = val
+}
+
+// parseDelimiter handles "--". Returns the updated i (before the outer i++).
+// Setting i = len(args)-1 causes the outer i++ to land on len(args), ending the loop.
+func (c *classifier) parseDelimiter(i int) int {
+	if i+1 < len(c.args) && strings.HasPrefix(c.args[i+1], "--") {
+		c.result.Positional = append(c.result.Positional, c.args[i+1:]...)
+		return len(c.args) - 1
+	}
+	c.result.UnknownFlags = append(c.result.UnknownFlags, FlagError{Raw: "--", Category: "unknown"})
+	return i
+}
+
+// classifyBareFlag handles tokens starting with "--" that lack a valid "=value".
+// Checks known prefixes first; falls back to unknown.
+func (c *classifier) classifyBareFlag(tok string) {
+	known := []struct{ prefix, cat string }{
+		{"--color", "color"}, {"--output", "output"},
+		{"--align", "align"}, {"--reverse", "reverse"},
+	}
+	for _, k := range known {
+		if strings.HasPrefix(tok, k.prefix) {
+			c.result.Malformed = append(c.result.Malformed, FlagError{Raw: tok, Category: k.cat})
+			return
+		}
+	}
+	c.result.UnknownFlags = append(c.result.UnknownFlags, FlagError{Raw: tok, Category: "unknown"})
+}
+
+func (c *classifier) classify(tok string, i int) int {
+	switch {
+	case tok == "--stdin":
+		c.result.StdinMode = true
+	case strings.HasPrefix(tok, "--color="):
+		i = c.parseColor(tok, i)
+	case strings.HasPrefix(tok, "--output="):
+		c.parseOutput(tok)
+	case strings.HasPrefix(tok, "--align="):
+		c.parseAlign(tok)
+	case strings.HasPrefix(tok, "--reverse="):
+		c.parseReverse(tok)
+	case tok == "--":
+		i = c.parseDelimiter(i)
+	case strings.HasPrefix(tok, "--"):
+		c.classifyBareFlag(tok)
+	default:
+		c.result.Positional = append(c.result.Positional, tok)
+	}
+	return i
+}
+
 // ClassifyArgs performs a single pass over args, routing every token into
 // exactly one bucket of ParsedArgs. No token is processed twice.
 func ClassifyArgs(args []string) ParsedArgs {
-	result := ParsedArgs{
-		Positional:   []string{},
-		ColorRules:   []RawColorRule{},
-		UnknownFlags: []FlagError{},
-		Malformed:    []FlagError{},
+	c := newClassifier(args)
+	for i := 0; i < len(args); i++ {
+		i = c.classify(args[i], i)
 	}
-
-	// countNonFlags returns the number of non-flag tokens in args[from:].
-	countNonFlags := func(from int) int {
-		n := 0
-		stopFlags := false
-		for j := from; j < len(args); j++ {
-			if stopFlags {
-				n++
-				continue
-			}
-			if args[j] == "--" && j < len(args)-1 && strings.HasPrefix(args[j+1], "--") {
-				stopFlags = true
-				continue
-			}
-			if !strings.HasPrefix(args[j], "--") {
-				n++
-			}
-		}
-		return n
-	}
-
-	alignExplicit := false
-
-	i := 0
-	for i < len(args) {
-		tok := args[i]
-		switch {
-		case tok == "--stdin":
-			result.StdinMode = true
-
-		case strings.HasPrefix(tok, "--color="):
-			val := tok[8:]
-			rule := RawColorRule{ColorValue: val}
-			// Peek: consume the next token as a substring only when at least
-			// one more non-flag token follows it (so it's not the sole string).
-			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "--") && countNonFlags(i+2) > 0 {
-				rule.Substring = args[i+1]
-				i++
-			}
-			result.ColorRules = append(result.ColorRules, rule)
-
-		case strings.HasPrefix(tok, "--output="):
-			val := tok[9:]
-			if !strings.HasSuffix(strings.ToLower(val), ".txt") || val == "" {
-				// Invalid extension or empty value — treat as malformed.
-				result.Malformed = append(result.Malformed, FlagError{Raw: tok, Category: "output"})
-			} else if result.OutputValue != "" {
-				// Duplicate valid output: last wins, record old value for warning.
-				result.Malformed = append(result.Malformed, FlagError{
-					Raw:      "--output=" + result.OutputValue,
-					Category: "dup-output",
-				})
-				result.OutputValue = val
-			} else {
-				result.OutputValue = val
-			}
-
-		case strings.HasPrefix(tok, "--align="):
-			val := tok[8:]
-			switch val {
-			case "left", "right", "center", "justify":
-				if alignExplicit {
-					// Duplicate valid align: last wins, record old value for warning.
-					result.Malformed = append(result.Malformed, FlagError{
-						Raw:      result.AlignValue,
-						Category: "dup-align",
-					})
-				}
-				result.AlignValue = val
-				alignExplicit = true
-			default:
-				// Unknown align type.
-				result.Malformed = append(result.Malformed, FlagError{Raw: tok, Category: "align"})
-			}
-
-		case strings.HasPrefix(tok, "--reverse="):
-			val := tok[10:]
-			if result.ReverseValue != "" {
-				result.Malformed = append(result.Malformed, FlagError{
-					Raw:      "--reverse=" + result.ReverseValue,
-					Category: "dup-reverse",
-				})
-			}
-			result.ReverseValue = val
-
-		case tok == "--":
-			// Delimiter only if it precedes something that looks like a flag.
-			if i+1 < len(args) && strings.HasPrefix(args[i+1], "--") {
-				result.Positional = append(result.Positional, args[i+1:]...)
-				i = len(args) // Skip remaining arguments
-				continue
-			}
-			result.UnknownFlags = append(result.UnknownFlags, FlagError{Raw: tok, Category: "unknown"})
-
-		// Known flag names without proper =value syntax.
-		case strings.HasPrefix(tok, "--color"):
-			result.Malformed = append(result.Malformed, FlagError{Raw: tok, Category: "color"})
-		case strings.HasPrefix(tok, "--output"):
-			result.Malformed = append(result.Malformed, FlagError{Raw: tok, Category: "output"})
-		case strings.HasPrefix(tok, "--align"):
-			result.Malformed = append(result.Malformed, FlagError{Raw: tok, Category: "align"})
-		case strings.HasPrefix(tok, "--reverse"):
-			result.Malformed = append(result.Malformed, FlagError{Raw: tok, Category: "reverse"})
-
-		case strings.HasPrefix(tok, "--"):
-			result.UnknownFlags = append(result.UnknownFlags, FlagError{Raw: tok, Category: "unknown"})
-
-		default:
-			result.Positional = append(result.Positional, tok)
-		}
-		i++
-	}
-
-	return result
+	return c.result
 }
 
 // BuildColorRules converts []RawColorRule into []render.ColorRule, resolving

@@ -26,61 +26,74 @@ var namedColors = map[string]string{
 	"bright-white":   "\x1b[97m",
 }
 
+func ansiRGB(r, g, b uint64) string {
+	return fmt.Sprintf("\x1b[38;2;%d;%d;%dm", r, g, b)
+}
+
+func parseHexColor(color string) (string, bool) {
+	if !strings.HasPrefix(color, "#") || len(color) != 7 {
+		return "", false
+	}
+	r, err1 := strconv.ParseUint(color[1:3], 16, 8)
+	g, err2 := strconv.ParseUint(color[3:5], 16, 8)
+	b, err3 := strconv.ParseUint(color[5:7], 16, 8)
+	if err1 != nil || err2 != nil || err3 != nil {
+		return "", false
+	}
+	return ansiRGB(r, g, b), true
+}
+
+func parseRGBColor(compact string) (string, bool) {
+	if !strings.HasPrefix(compact, "rgb(") || !strings.HasSuffix(compact, ")") {
+		return "", false
+	}
+	parts := strings.Split(compact[4:len(compact)-1], ",")
+	if len(parts) != 3 {
+		return "", false
+	}
+	r, err1 := strconv.ParseUint(parts[0], 10, 8)
+	g, err2 := strconv.ParseUint(parts[1], 10, 8)
+	b, err3 := strconv.ParseUint(parts[2], 10, 8)
+	if err1 != nil || err2 != nil || err3 != nil {
+		return "", false
+	}
+	return ansiRGB(r, g, b), true
+}
+
+func parseHSLColor(compact string) (string, bool) {
+	if !strings.HasPrefix(compact, "hsl(") || !strings.HasSuffix(compact, ")") {
+		return "", false
+	}
+	parts := strings.Split(compact[4:len(compact)-1], ",")
+	if len(parts) != 3 {
+		return "", false
+	}
+	h, err1 := strconv.ParseFloat(parts[0], 64)
+	s, err2 := strconv.ParseFloat(strings.TrimSuffix(parts[1], "%"), 64)
+	l, err3 := strconv.ParseFloat(strings.TrimSuffix(parts[2], "%"), 64)
+	if err1 != nil || err2 != nil || err3 != nil {
+		return "", false
+	}
+	r, g, b := hslToRGB(h, s/100, l/100)
+	return fmt.Sprintf("\x1b[38;2;%d;%d;%dm", r, g, b), true
+}
+
 // ColorToANSI converts any supported color notation to an ANSI CSI start
 // sequence. ok=false means the input was unknown or unparsable; the caller
 // should warn and skip coloring.
-func ColorToANSI(color string) (start string, ok bool) {
+func ColorToANSI(color string) (string, bool) {
 	lower := strings.ToLower(color)
-
 	if ansi, found := namedColors[lower]; found {
 		return ansi, true
 	}
-
-	// Hex: #RRGGBB
-	if strings.HasPrefix(color, "#") && len(color) == 7 {
-		r, err1 := strconv.ParseUint(color[1:3], 16, 8)
-		g, err2 := strconv.ParseUint(color[3:5], 16, 8)
-		b, err3 := strconv.ParseUint(color[5:7], 16, 8)
-		if err1 == nil && err2 == nil && err3 == nil {
-			return fmt.Sprintf("\x1b[38;2;%d;%d;%dm", r, g, b), true
-		}
+	if ansi, ok := parseHexColor(color); ok {
+		return ansi, ok
 	}
-
-	// Strip spaces for RGB/HSL parsing.
 	compact := strings.ReplaceAll(lower, " ", "")
-
-	// RGB: rgb(r,g,b)
-	if strings.HasPrefix(compact, "rgb(") && strings.HasSuffix(compact, ")") {
-		inner := compact[4 : len(compact)-1]
-		parts := strings.Split(inner, ",")
-		if len(parts) == 3 {
-			r, err1 := strconv.ParseUint(parts[0], 10, 8)
-			g, err2 := strconv.ParseUint(parts[1], 10, 8)
-			b, err3 := strconv.ParseUint(parts[2], 10, 8)
-			if err1 == nil && err2 == nil && err3 == nil && r <= 255 && g <= 255 && b <= 255 {
-				return fmt.Sprintf("\x1b[38;2;%d;%d;%dm", r, g, b), true
-			}
-		}
+	if ansi, ok := parseRGBColor(compact); ok {
+		return ansi, ok
 	}
-
-	// HSL: hsl(h,s%,l%)
-	if strings.HasPrefix(compact, "hsl(") && strings.HasSuffix(compact, ")") {
-		inner := compact[4 : len(compact)-1]
-		parts := strings.Split(inner, ",")
-		if len(parts) == 3 {
-			h, err1 := strconv.ParseFloat(parts[0], 64)
-			sStr := strings.TrimSuffix(parts[1], "%")
-			lStr := strings.TrimSuffix(parts[2], "%")
-			s, err2 := strconv.ParseFloat(sStr, 64)
-			l, err3 := strconv.ParseFloat(lStr, 64)
-			if err1 == nil && err2 == nil && err3 == nil {
-				r, g, b := hslToRGB(h, s/100, l/100)
-				return fmt.Sprintf("\x1b[38;2;%d;%d;%dm", r, g, b), true
-			}
-		}
-	}
-
-	return "", false
+	return parseHSLColor(compact)
 }
 
 // WrapWithColor wraps s with ansiStart and the reset code \x1b[0m.
@@ -103,7 +116,6 @@ func buildColorMask(s, sub []rune, enableColor bool) []bool {
 		}
 		return mask
 	}
-	// Case-sensitive substring scan.
 	for i := 0; i <= len(s)-len(sub); i++ {
 		match := true
 		for j := 0; j < len(sub); j++ {
