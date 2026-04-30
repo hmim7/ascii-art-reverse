@@ -217,11 +217,11 @@ func TestEmitWarnings(t *testing.T) {
 
 	cli.EmitWarnings(args)
 
-	w.Close()
+	_ = w.Close()
 	os.Stderr = old
 
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	_, _ = io.Copy(&buf, r)
 	output := buf.String()
 
 	expectedSubstrings := []string{
@@ -284,11 +284,11 @@ func TestEmitWarnings_MultipleInvalid(t *testing.T) {
 
 			cli.EmitWarnings(tt.args)
 
-			w.Close()
+			_ = w.Close()
 			os.Stderr = old
 
 			var buf bytes.Buffer
-			io.Copy(&buf, r)
+			_, _ = io.Copy(&buf, r)
 			output := buf.String()
 
 			if !strings.Contains(output, tt.wantSubstring) {

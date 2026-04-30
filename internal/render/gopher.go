@@ -44,19 +44,24 @@ const (
 
 // RenderGopher writes the hardcoded Peeking Gopher ANSI art to w.
 func RenderGopher(writer io.Writer) {
-	fmt.Fprint(writer, gopherGreen+"                   \n"+gopherReset)
-	fmt.Fprint(writer, gopherGreen+"                   \n"+gopherReset)
-	fmt.Fprint(writer, gopherGreen+"                   \n"+gopherReset)
-	fmt.Fprint(writer, gopherRed+"🐸 Ooops! Peeking Gopher appeared...\n"+gopherReset)
-	fmt.Fprint(writer, gopherGreen+"          ___   ___ \n"+gopherReset)
-	fmt.Fprint(writer, gopherGreen+"         ( o ) ( o )\n"+gopherReset)
-	fmt.Fprint(writer, gopherGreen+"        /           \\\n"+gopherReset)
-	fmt.Fprint(writer, gopherGreen+"       |  (  ---  )  |\n"+gopherReset)
-	fmt.Fprint(writer, gopherGreen+"       ^^^         ^^^\n"+gopherReset)
-	fmt.Fprint(writer, gopherRed+"     [⛔ UNSUPPORTED ⛔]\n\n"+gopherReset)
-	fmt.Fprint(writer, gopherOrange+"     -- Gopher module --\n"+gopherReset)
-	fmt.Fprint(writer, gopherRed+"Input is currently unsupported.\n"+gopherReset)
-	fmt.Fprint(writer, gopherGreen+"                   \n"+gopherReset)
-	fmt.Fprint(writer, gopherGreen+"                   \n"+gopherReset)
-	fmt.Fprint(writer, gopherGreen+"                   \n"+gopherReset)
+	lines := []string{
+		gopherGreen + "                   \n" + gopherReset,
+		gopherGreen + "                   \n" + gopherReset,
+		gopherGreen + "                   \n" + gopherReset,
+		gopherRed + "🐸 Ooops! Peeking Gopher appeared...\n" + gopherReset,
+		gopherGreen + "          ___   ___ \n" + gopherReset,
+		gopherGreen + "         ( o ) ( o )\n" + gopherReset,
+		gopherGreen + "        /           \\\n" + gopherReset,
+		gopherGreen + "       |  (  ---  )  |\n" + gopherReset,
+		gopherGreen + "       ^^^         ^^^\n" + gopherReset,
+		gopherRed + "     [⛔ UNSUPPORTED ⛔]\n\n" + gopherReset,
+		gopherOrange + "     -- Gopher module --\n" + gopherReset,
+		gopherRed + "Input is currently unsupported.\n" + gopherReset,
+		gopherGreen + "                   \n" + gopherReset,
+		gopherGreen + "                   \n" + gopherReset,
+		gopherGreen + "                   \n" + gopherReset,
+	}
+	for _, l := range lines {
+		_, _ = fmt.Fprint(writer, l)
+	}
 }

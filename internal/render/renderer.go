@@ -33,4 +33,3 @@ func RenderAligned(w io.Writer, segs []string, m map[rune][]string, align string
 func RenderAlignedWithColor(w io.Writer, segs []string, m map[rune][]string, ansi, sub, align string, width int) {
 	RenderAlignedWithColorRules(w, segs, m, []ColorRule{{ANSIStart: ansi, Substring: sub}}, align, width)
 }
-

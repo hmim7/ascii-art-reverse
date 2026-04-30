@@ -202,18 +202,18 @@ func RenderAlignedWithColorRules(w io.Writer, segs []string, m map[rune][]string
 	}
 	if allEmpty {
 		for i := 0; i < len(segs)-1; i++ {
-			fmt.Fprintln(w)
+			_, _ = fmt.Fprintln(w)
 		}
 		return
 	}
 
 	for _, seg := range segs {
 		if seg == "" {
-			fmt.Fprintln(w)
+			_, _ = fmt.Fprintln(w)
 			continue
 		}
 		for _, line := range renderSegment(seg, get, rules, align, width) {
-			fmt.Fprintln(w, line)
+			_, _ = fmt.Fprintln(w, line)
 		}
 	}
 }

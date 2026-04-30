@@ -29,7 +29,7 @@ func TestGetWriter_File(t *testing.T) {
 	if f == nil {
 		t.Fatal("expected non-nil file")
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	if w == nil {
 		t.Error("expected non-nil writer")
 	}
