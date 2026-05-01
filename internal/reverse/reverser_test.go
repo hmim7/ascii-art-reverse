@@ -52,6 +52,9 @@ func TestRun(t *testing.T) {
 		{name: "Example07", file: "testdata/example07.txt", bannerName: "standard", want: "ABCDEFGHIJKLMNOPQRSTUVWXYZ"},
 		{name: "ShadowBanner", file: "testdata/shadow_hello_world.txt", bannerName: "shadow", want: "Hello World"},
 		{name: "MultiLine", file: "testdata/multi_line_art.txt", bannerName: "standard", want: "Hello\nWorld"},
+		{name: "A47MixedCase", file: "testdata/example_a47.txt", bannerName: "standard", want: "rEvErSe"},
+		{name: "A48LowerNumSpace", file: "testdata/example_a48.txt", bannerName: "standard", want: "abc 123 def"},
+		{name: "A49SpecialChars", file: "testdata/example_a49.txt", bannerName: "standard", want: "(^_^)"},
 		{name: "InvalidArt", file: "testdata/invalid_art.txt", bannerName: "standard", wantErr: true},
 		{name: "FileNotFound", file: "testdata/nonexistent.txt", bannerName: "standard", wantErr: true},
 	}
