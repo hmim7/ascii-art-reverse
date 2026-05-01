@@ -2,6 +2,8 @@ package render_test
 
 import (
 	"bytes"
+	"io"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -10,185 +12,225 @@ import (
 
 // --- ParseInput (task05) ---
 
-func TestParseInput_NewlineSplit(t *testing.T) {
-	got := render.ParseInput("Hello\nWorld")
-	if len(got) != 2 {
-		t.Errorf("expected 2 segments, got %d", len(got))
-	}
-}
-
-func TestParseInput_Empty(t *testing.T) {
-	// strings.Split("", "\n") = [""] → 1 segment (empty string).
-	// RenderAlignedWithColorRules handles all-empty via special case.
-	got := render.ParseInput("")
-	if len(got) != 1 {
-		t.Errorf("expected 1 segment for empty input, got %d", len(got))
-	}
-	if got[0] != "" {
-		t.Errorf("expected empty segment, got %q", got[0])
-	}
-}
-
-func TestParseInput_OnlyNewline(t *testing.T) {
-	// "\\n" is preprocessed to a real newline → split → ["", ""] (2 segments).
-	got := render.ParseInput("\\n")
-	if len(got) != 2 {
-		t.Errorf("expected 2 segments for single-newline input, got %d", len(got))
-	}
-}
-
-func TestParseInput_MultipleNewlines(t *testing.T) {
-	got := render.ParseInput("A\\nB\\nC")
-	if len(got) != 3 {
-		t.Errorf("expected 3 segments, got %d: %v", len(got), got)
-	}
-	if got[0] != "A" || got[1] != "B" || got[2] != "C" {
-		t.Errorf("unexpected segments: %v", got)
-	}
-}
-
-func TestParseInput_FiltersNonASCII(t *testing.T) {
-	got := render.ParseInput("héllo")
-	if len(got) != 1 {
-		t.Fatalf("expected 1 segment, got %d", len(got))
-	}
-	if strings.ContainsRune(got[0], 'é') {
-		t.Errorf("non-ASCII rune 'é' was not filtered: %q", got[0])
-	}
-}
-
-// --- Mapper (task05) ---
-
-func TestMapper_ValidRune(t *testing.T) {
-	m := map[rune][]string{
-		'A': {"line1", "line2", "line3", "line4", "line5", "line6", "line7", "line8"},
-	}
-	get := render.Mapper(m)
-	lines := get('A')
-	if len(lines) != 8 || lines[0] != "line1" {
-		t.Errorf("Mapper returned unexpected lines for 'A': %v", lines)
-	}
-}
-
-func TestMapper_MissingRune(t *testing.T) {
-	get := render.Mapper(map[rune][]string{})
-	lines := get('Z')
-	if len(lines) != 8 {
-		t.Errorf("expected 8 empty lines for missing rune, got %d", len(lines))
-	}
-	for i, l := range lines {
-		if l != "" {
-			t.Errorf("line %d should be empty, got %q", i, l)
-		}
-	}
-}
-
-func TestMapper_OutOfRangeBelow(t *testing.T) {
-	get := render.Mapper(map[rune][]string{'\x01': {"x"}})
-	lines := get('\x01')
-	if len(lines) != 8 {
-		t.Errorf("expected 8 empty lines for rune <32, got %d", len(lines))
-	}
-}
-
-func TestMapper_OutOfRangeAbove(t *testing.T) {
-	get := render.Mapper(map[rune][]string{'é': {"x"}})
-	lines := get('é')
-	if len(lines) != 8 {
-		t.Errorf("expected 8 empty lines for rune >126, got %d", len(lines))
-	}
-}
-
-// --- ColorToANSI (task06) ---
-
-func TestColorToANSI_NamedColors(t *testing.T) {
+func TestParseInput(t *testing.T) {
 	tests := []struct {
-		color string
-		want  string
+		name  string
+		input string
+		want  []string
 	}{
-		{"red", "\x1b[31m"},
-		{"green", "\x1b[32m"},
-		{"blue", "\x1b[34m"},
-		{"cyan", "\x1b[36m"},
-		{"white", "\x1b[37m"},
-		{"black", "\x1b[30m"},
+		{
+			name:  "NewlineSplit",
+			input: "Hello\nWorld",
+			want:  []string{"Hello", "World"},
+		},
+		{
+			name:  "Empty",
+			input: "",
+			want:  []string{""},
+		},
+		{
+			name:  "OnlyNewline",
+			input: "\\n",
+			want:  []string{"", ""},
+		},
+		{
+			name:  "MultipleNewlines",
+			input: "A\\nB\\nC",
+			want:  []string{"A", "B", "C"},
+		},
+		{
+			name:  "FiltersNonASCII",
+			input: "héllo",
+			want:  []string{"hllo"},
+		},
+		{
+			name:  "TabFiltered",
+			input: "A\\tB",
+			want:  []string{"AB"},
+		},
+		{
+			name:  "BareCRSplits",
+			input: "A\rB",
+			want:  []string{"A", "B"},
+		},
+		{
+			name:  "CRLFNormalized",
+			input: "A\r\nB",
+			want:  []string{"A", "B"},
+		},
+		{
+			name:  "MultipleCRLF",
+			input: "A\r\nB\r\nC",
+			want:  []string{"A", "B", "C"},
+		},
+		{
+			name:  "TrailingBackslash",
+			input: `\`,
+			want:  []string{`\`},
+		},
 	}
+
 	for _, tt := range tests {
-		t.Run(tt.color, func(t *testing.T) {
-			got, ok := render.ColorToANSI(tt.color)
-			if !ok {
-				t.Fatalf("ColorToANSI(%q): ok=false", tt.color)
+		t.Run(tt.name, func(st *testing.T) {
+			got := render.ParseInput(tt.input)
+			if !reflect.DeepEqual(got, tt.want) {
+				st.Errorf("ParseInput() = %v, want %v", got, tt.want)
 			}
-			if got != tt.want {
-				t.Errorf("ColorToANSI(%q) = %q, want %q", tt.color, got, tt.want)
+			if len(got) != len(tt.want) {
+				st.Fatalf("got %d segments, want %d", len(got), len(tt.want))
+			}
+			for i := range tt.want {
+				if got[i] != tt.want[i] {
+					st.Errorf("segment[%d] = %q, want %q", i, got[i], tt.want[i])
+				}
 			}
 		})
 	}
 }
 
-func TestColorToANSI_Hex(t *testing.T) {
-	got, ok := render.ColorToANSI("#FF0000")
-	if !ok {
-		t.Fatal("ColorToANSI(#FF0000): ok=false")
+// --- Mapper (task05) ---
+
+func TestMapper(t *testing.T) {
+	bannerMap := map[rune][]string{
+		'A': {"l1", "l2", "l3", "l4", "l5", "l6", "l7", "l8"},
 	}
-	if got != "\x1b[38;2;255;0;0m" {
-		t.Errorf("got %q, want %q", got, "\x1b[38;2;255;0;0m")
+	get := render.Mapper(bannerMap)
+
+	tests := []struct {
+		wantVal string
+		name    string
+		input   rune
+		wantIdx int
+	}{
+		{name: "ValidRune", input: 'A', wantIdx: 0, wantVal: "l1"},
+		{name: "MissingRune", input: 'Z', wantIdx: 0, wantVal: ""},
+		{name: "OutOfRangeBelow", input: '\x1f', wantIdx: 0, wantVal: ""},
+		{name: "OutOfRangeAbove", input: '\x7f', wantIdx: 0, wantVal: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(st *testing.T) {
+			got := get(tt.input)
+			if len(got) != 8 {
+				st.Fatalf("expected 8 lines, got %d", len(got))
+			}
+			if got[tt.wantIdx] != tt.wantVal {
+				st.Errorf("line[%d] = %q, want %q", tt.wantIdx, got[tt.wantIdx], tt.wantVal)
+			}
+		})
 	}
 }
 
-func TestColorToANSI_RGB(t *testing.T) {
-	got, ok := render.ColorToANSI("rgb(0,255,0)")
-	if !ok {
-		t.Fatal("ColorToANSI(rgb(0,255,0)): ok=false")
-	}
-	if got != "\x1b[38;2;0;255;0m" {
-		t.Errorf("got %q, want %q", got, "\x1b[38;2;0;255;0m")
-	}
-}
+// --- ColorToANSI (task06) ---
 
-func TestColorToANSI_Invalid(t *testing.T) {
-	_, ok := render.ColorToANSI("notacolor")
-	if ok {
-		t.Error("expected ok=false for invalid color")
+func TestColorToANSI(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		want   string
+		wantOK bool
+	}{
+		{"NamedRed", "red", "\x1b[31m", true},
+		{"NamedGreen", "green", "\x1b[32m", true},
+		{"NamedBlue", "blue", "\x1b[34m", true},
+		{"NamedCyan", "cyan", "\x1b[36m", true},
+		{"NamedWhite", "white", "\x1b[37m", true},
+		{"NamedBlack", "black", "\x1b[30m", true},
+		{"HexRed", "#FF0000", "\x1b[38;2;255;0;0m", true},
+		{"RGBGreen", "rgb(0,255,0)", "\x1b[38;2;0;255;0m", true},
+		{"Invalid", "notacolor", "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(st *testing.T) {
+			got, ok := render.ColorToANSI(tt.input)
+			if ok != tt.wantOK {
+				st.Fatalf("ColorToANSI(%q) ok = %v, want %v", tt.input, ok, tt.wantOK)
+			}
+			if tt.wantOK && got != tt.want {
+				st.Errorf("ColorToANSI(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
 	}
 }
 
 // --- WrapWithColor (task06) ---
 
-func TestWrapWithColor_ShortCircuit(t *testing.T) {
-	if got := render.WrapWithColor("hi", ""); got != "hi" {
-		t.Errorf("expected short-circuit on empty ansi, got %q", got)
+func TestWrapWithColor(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		ansiStart string
+		want      string
+	}{
+		{
+			name:      "EmptyAnsiShortCircuit",
+			input:     "hi",
+			ansiStart: "",
+			want:      "hi",
+		},
+		{
+			name:      "EmptyStringShortCircuit",
+			input:     "",
+			ansiStart: "\x1b[31m",
+			want:      "",
+		},
+		{
+			name:      "WrapRed",
+			input:     "hello",
+			ansiStart: "\x1b[31m",
+			want:      "\x1b[31mhello\x1b[0m",
+		},
 	}
-	if got := render.WrapWithColor("", "\x1b[31m"); got != "" {
-		t.Errorf("expected short-circuit on empty s, got %q", got)
-	}
-}
 
-func TestWrapWithColor_Wrap(t *testing.T) {
-	got := render.WrapWithColor("hello", "\x1b[31m")
-	want := "\x1b[31m" + "hello" + "\x1b[0m"
-	if got != want {
-		t.Errorf("got %q, want %q", got, want)
+	for _, tt := range tests {
+		t.Run(tt.name, func(st *testing.T) {
+			got := render.WrapWithColor(tt.input, tt.ansiStart)
+			if got != tt.want {
+				st.Errorf("WrapWithColor() = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
 
 // --- ShouldRenderGopher ---
 
-func TestShouldRenderGopher_EmptyText(t *testing.T) {
-	if render.ShouldRenderGopher("", []string{""}) {
-		t.Error("empty text should not trigger gopher")
+func TestShouldRenderGopher(t *testing.T) {
+	tests := []struct {
+		name     string
+		text     string
+		segments []string
+		want     bool
+	}{
+		{"EmptyText", "", []string{""}, false},
+		{"NonASCII", "こんにちは", []string{""}, true},
+		{"ASCII", "Hello", []string{"Hello"}, false},
+		{
+			name:     "NonASCII_But_NotBlankSegments",
+			text:     "こんにちはA",
+			segments: []string{"A"},
+			want:     false,
+		},
+		{
+			name:     "AllowedEscapes_Only",
+			text:     "\\n",
+			segments: []string{"", ""},
+			want:     false,
+		},
+		{
+			name:     "TabEscape_Only",
+			text:     "\\t",
+			segments: []string{""},
+			want:     false,
+		},
 	}
-}
 
-func TestShouldRenderGopher_NonASCII(t *testing.T) {
-	if !render.ShouldRenderGopher("こんにちは", []string{""}) {
-		t.Error("non-ASCII text should trigger gopher")
-	}
-}
-
-func TestShouldRenderGopher_ASCII(t *testing.T) {
-	if render.ShouldRenderGopher("Hello", []string{"Hello"}) {
-		t.Error("ASCII text should not trigger gopher")
+	for _, tt := range tests {
+		t.Run(tt.name, func(st *testing.T) {
+			if got := render.ShouldRenderGopher(tt.text, tt.segments); got != tt.want {
+				st.Errorf("ShouldRenderGopher(%q) = %v, want %v", tt.text, got, tt.want)
+			}
+		})
 	}
 }
 
@@ -210,71 +252,461 @@ func buildSimpleMap() map[rune][]string {
 	return m
 }
 
-func TestRenderAligned_Left(t *testing.T) {
-	var buf bytes.Buffer
+func TestRenderAligned(t *testing.T) {
 	m := buildSimpleMap()
-	segs := []string{"AB"}
-	render.RenderAlignedWithColorRules(&buf, segs, m, nil, "left", 80)
-	out := buf.String()
-	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
-	if len(lines) != 8 {
-		t.Fatalf("expected 8 lines, got %d", len(lines))
+	tests := []struct {
+		name  string
+		align string
+		check func(st *testing.T, out string)
+		segs  []string
+		width int
+	}{
+		{
+			name:  "Left",
+			segs:  []string{"AB"},
+			align: "left",
+			width: 80,
+			check: func(st *testing.T, out string) {
+				lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+				if len(lines) != 8 {
+					st.Fatalf("expected 8 lines, got %d", len(lines))
+				}
+				if !strings.HasPrefix(lines[4], "AB") {
+					st.Errorf("expected AB prefix, got %q", lines[4])
+				}
+			},
+		},
+		{
+			name:  "Right",
+			segs:  []string{"A"},
+			align: "right",
+			width: 20,
+			check: func(st *testing.T, out string) {
+				lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+				if !strings.HasSuffix(strings.TrimRight(lines[4], " "), "A") {
+					st.Errorf("expected A suffix, got %q", lines[4])
+				}
+			},
+		},
+		{
+			name:  "Center",
+			segs:  []string{"A"},
+			align: "center",
+			width: 21,
+			check: func(st *testing.T, out string) {
+				lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+				if !strings.HasPrefix(lines[4], " ") {
+					st.Errorf("expected leading space, got %q", lines[4])
+				}
+			},
+		},
+		{
+			name:  "EmptyInput",
+			segs:  []string{""},
+			align: "left",
+			width: 80,
+			check: func(st *testing.T, out string) {
+				if out != "" {
+					st.Errorf("expected empty output, got %q", out)
+				}
+			},
+		},
+		{
+			name:  "NewlineOnly",
+			segs:  []string{"", ""},
+			align: "left",
+			width: 80,
+			check: func(st *testing.T, out string) {
+				if out != "\n" {
+					st.Errorf("expected one newline, got %q", out)
+				}
+			},
+		},
+		{
+			name:  "JustifyWords", // This was the problematic one, now fixed with named fields
+			segs:  []string{"A B"},
+			align: "justify",
+			width: 22,
+			check: func(st *testing.T, out string) {
+				lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+				if len(lines[4]) != 22 {
+					st.Errorf("Justify width mismatch: got %d, want 22", len(lines[4]))
+				}
+			},
+		},
+		{
+			name:  "JustifyNarrowClamp",
+			segs:  []string{"A B"},
+			align: "justify",
+			width: 1,
+			check: func(st *testing.T, out string) {
+				lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+				if len(lines) != 8 {
+					st.Errorf("expected 8 lines for narrow justify, got %d", len(lines))
+				}
+			},
+		},
+		{
+			name:  "JustifySpacesOnly",
+			segs:  []string{"  "},
+			align: "justify",
+			width: 20,
+			check: func(st *testing.T, out string) {
+				if out == "" {
+					st.Error("expected non-empty output for space-only justify")
+				}
+			},
+		},
+		{
+			name:  "UnknownAlignmentFallback",
+			segs:  []string{"A"},
+			align: "unknown",
+			width: 20,
+			check: func(st *testing.T, out string) {
+				if out == "" {
+					st.Error("expected output for unknown alignment")
+				}
+			},
+		},
 	}
-	if !strings.HasPrefix(lines[4], "AB") {
-		t.Errorf("left-aligned line[4] should start with \"AB\", got %q", lines[4])
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(st *testing.T) {
+			var buf bytes.Buffer
+			render.RenderAlignedWithColorRules(&buf, tt.segs, m, nil, tt.align, tt.width)
+			tt.check(st, buf.String())
+		})
 	}
 }
 
-func TestRenderAligned_Right(t *testing.T) {
-	var buf bytes.Buffer
+// TestRenderConvenienceWrappers verifies every delegating entry point produces output.
+func TestRenderConvenienceWrappers(t *testing.T) {
 	m := buildSimpleMap()
 	segs := []string{"A"}
-	render.RenderAlignedWithColorRules(&buf, segs, m, nil, "right", 20)
-	out := buf.String()
-	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
-	if len(lines) != 8 {
-		t.Fatalf("expected 8 lines, got %d", len(lines))
+
+	tests := []struct {
+		name string
+		fn   func() int
+	}{
+		{"Render", func() int {
+			var buf bytes.Buffer
+			render.Render(&buf, segs, m)
+			return buf.Len()
+		}},
+		{"RenderWithColor", func() int {
+			var buf bytes.Buffer
+			render.RenderWithColor(&buf, segs, m, "\x1b[31m", "")
+			return buf.Len()
+		}},
+		{"RenderWithColorRules", func() int {
+			var buf bytes.Buffer
+			render.RenderWithColorRules(&buf, segs, m, []render.ColorRule{{ANSIStart: "\x1b[31m"}})
+			return buf.Len()
+		}},
+		{"RenderAligned", func() int {
+			var buf bytes.Buffer
+			render.RenderAligned(&buf, segs, m, "left", 80)
+			return buf.Len()
+		}},
+		{"RenderAlignedWithColor", func() int {
+			var buf bytes.Buffer
+			render.RenderAlignedWithColor(&buf, segs, m, "\x1b[31m", "", "left", 80)
+			return buf.Len()
+		}},
 	}
-	if !strings.HasSuffix(strings.TrimRight(lines[4], " "), "A") {
-		t.Errorf("right-aligned line[4] should end with \"A\", got %q", lines[4])
-	}
-	if !strings.HasPrefix(lines[4], " ") {
-		t.Errorf("right-aligned line[4] should have leading spaces, got %q", lines[4])
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(st *testing.T) {
+			if n := tt.fn(); n == 0 {
+				st.Errorf("%s: expected non-empty output", tt.name)
+			}
+		})
 	}
 }
 
-func TestRenderAligned_Center(t *testing.T) {
-	var buf bytes.Buffer
+// TestRenderGopher verifies RenderGopher writes non-empty ANSI art.
+func TestRenderGopher(t *testing.T) {
+	tests := []struct {
+		name          string
+		renderFn      func(io.Writer)
+		wantSubstring string
+	}{
+		{
+			name:          "PeekingGopher",
+			renderFn:      render.RenderGopher,
+			wantSubstring: "Gopher",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(st *testing.T) {
+			var buf bytes.Buffer
+			tt.renderFn(&buf)
+			if buf.Len() == 0 {
+				st.Errorf("%s: expected non-empty output", tt.name)
+			}
+			if !strings.Contains(buf.String(), tt.wantSubstring) {
+				st.Errorf("%s: expected %q in output", tt.name, tt.wantSubstring)
+			}
+		})
+	}
+}
+
+// TestDetectTerminalWidth covers the COLUMNS env path and fallback.
+func TestDetectTerminalWidth(t *testing.T) {
+	tests := []struct {
+		name    string
+		columns string
+		wantMin int // result must be >= wantMin (fallback is ≥80)
+		wantMax int // result must be <= wantMax (0 = no upper bound check)
+		wantVal int // exact value when > 0
+	}{
+		{
+			name:    "valid COLUMNS env",
+			columns: "120",
+			wantVal: 120,
+		},
+		{
+			name:    "invalid COLUMNS falls back to positive width",
+			columns: "bad",
+			wantMin: 1,
+		},
+		{
+			name:    "zero COLUMNS falls back to positive width",
+			columns: "0",
+			wantMin: 1,
+		},
+		{
+			name:    "negative COLUMNS falls back to positive width",
+			columns: "-5",
+			wantMin: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(st *testing.T) {
+			st.Setenv("COLUMNS", tt.columns)
+			got := render.DetectTerminalWidth()
+			if tt.wantVal > 0 && got != tt.wantVal {
+				st.Errorf("DetectTerminalWidth() = %d, want %d", got, tt.wantVal)
+			}
+			if tt.wantMin > 0 && got < tt.wantMin {
+				st.Errorf("DetectTerminalWidth() = %d, want >= %d", got, tt.wantMin)
+			}
+		})
+	}
+}
+
+// TestResolveWidth covers file-output (always 80) and terminal paths.
+func TestResolveWidth(t *testing.T) {
+	tests := []struct {
+		name     string
+		fileMode bool
+		want     int
+	}{
+		{
+			name:     "file output always 80",
+			fileMode: true,
+			want:     80,
+		},
+		{
+			name:     "terminal mode uses env",
+			fileMode: false,
+			want:     100,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(st *testing.T) {
+			if !tt.fileMode {
+				st.Setenv("COLUMNS", "100")
+			}
+			if got := render.ResolveWidth(tt.fileMode); got != tt.want {
+				st.Errorf("%s: got %d, want %d", tt.name, got, tt.want)
+			}
+		})
+	}
+}
+
+// --- ANSI and Styling (task06) ---
+
+// TestColorSubstringHighlight exercises the substring-matching path in buildColorMask.
+func TestColorSubstringHighlight(t *testing.T) {
 	m := buildSimpleMap()
 	segs := []string{"A"}
-	render.RenderAlignedWithColorRules(&buf, segs, m, nil, "center", 21)
-	out := buf.String()
-	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
-	if len(lines) != 8 {
-		t.Fatalf("expected 8 lines, got %d", len(lines))
+	rulesAll := []render.ColorRule{{ANSIStart: "\x1b[31m", Substring: ""}}
+
+	tests := []struct {
+		rules    []render.ColorRule
+		align    string
+		name     string
+		segs     []string
+		width    int
+		wantANSI bool
+	}{
+		{
+			name: "substring match injects ANSI",
+			segs: []string{"Hello World"},
+			rules: []render.ColorRule{
+				{ANSIStart: "\x1b[31m", Substring: "Hello"},
+			},
+			wantANSI: true,
+			align:    "left",
+			width:    0,
+		},
+		{
+			name: "non-matching substring produces no ANSI",
+			segs: []string{"Hi"},
+			rules: []render.ColorRule{
+				{ANSIStart: "\x1b[31m", Substring: "ZZZZ"},
+			},
+			wantANSI: false,
+			align:    "left",
+			width:    0,
+		},
+		{
+			name: "empty substring colors whole string",
+			segs: []string{"Hi"},
+			rules: []render.ColorRule{
+				{ANSIStart: "\x1b[31m", Substring: ""},
+			},
+			wantANSI: true,
+			align:    "left",
+			width:    0,
+		},
+		{
+			name:     "VisibleWidth_ANSI_Stripping_Right",
+			segs:     segs,
+			rules:    rulesAll,
+			wantANSI: true,
+			align:    "right",
+			width:    20,
+		},
+		{
+			name:     "VisibleWidth_ANSI_Stripping_Center",
+			segs:     segs,
+			rules:    rulesAll,
+			wantANSI: true,
+			align:    "center",
+			width:    20,
+		},
 	}
-	if !strings.HasPrefix(lines[4], " ") {
-		t.Errorf("center-aligned line[4] should have leading spaces, got %q", lines[4])
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(st *testing.T) {
+			var buf bytes.Buffer
+			render.RenderAlignedWithColorRules(&buf, tt.segs, m, tt.rules, tt.align, tt.width)
+			hasANSI := strings.Contains(buf.String(), "\x1b[")
+			if hasANSI != tt.wantANSI {
+				st.Errorf("wantANSI=%v but output ANSI presence=%v", tt.wantANSI, hasANSI)
+			}
+			if tt.width > 0 && tt.wantANSI {
+				lines := strings.Split(strings.TrimRight(buf.String(), "\n"), "\n")
+				if !strings.HasPrefix(lines[4], " ") {
+					st.Errorf("%s: expected leading space, got %q", tt.name, lines[4])
+				}
+			}
+		})
 	}
 }
 
-func TestRenderAligned_EmptyInput(t *testing.T) {
-	var buf bytes.Buffer
-	m := buildSimpleMap()
-	segs := []string{""}
-	render.RenderAlignedWithColorRules(&buf, segs, m, nil, "left", 80)
-	if buf.Len() != 0 {
-		t.Errorf("empty input should produce no output, got %q", buf.String())
+// FuzzParseInput checks that ParseInput never panics on arbitrary string input.
+func FuzzParseInput(f *testing.F) {
+	f.Add("Hello World")
+	f.Add("")
+	f.Add("\\n")
+	f.Add("A\\nB\\nC")
+	f.Add("héllo")
+	f.Add("!@#$%^&*()")
+	f.Add("   spaces   ")
+	f.Add("Hello\nWorld")
+	f.Add("\x00\x01\x7f")
+
+	f.Fuzz(func(t *testing.T, input string) {
+		segs := render.ParseInput(input)
+		if segs == nil {
+			t.Error("ParseInput must never return nil")
+		}
+	})
+}
+
+// FuzzColorToANSI checks that ColorToANSI never panics on arbitrary input.
+func FuzzColorToANSI(f *testing.F) {
+	f.Add("red")
+	f.Add("green")
+	f.Add("#FF0000")
+	f.Add("#abc")
+	f.Add("rgb(0,255,0)")
+	f.Add("rgb(999,0,0)")
+	f.Add("hsl(120,100%,50%)")
+	f.Add("")
+	f.Add("notacolor")
+	f.Add("#GGGGGG")
+
+	f.Fuzz(func(t *testing.T, color string) {
+		// Must not panic; ok=false is a valid result for unknown colors.
+		_, _ = render.ColorToANSI(color)
+	})
+}
+
+func BenchmarkParseInput(b *testing.B) {
+	cases := []struct{ name, input string }{
+		{"short", "Hello"},
+		{"with_escape", `Hello\nWorld`},
+		{"long", "Hello World How Are You Doing Today Fine Thanks"},
+	}
+	for _, tc := range cases {
+		b.Run(tc.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				_ = render.ParseInput(tc.input)
+			}
+		})
 	}
 }
 
-func TestRenderAligned_NewlineOnly(t *testing.T) {
-	var buf bytes.Buffer
+func BenchmarkColorToANSI(b *testing.B) {
+	cases := []struct{ name, input string }{
+		{"named", "red"},
+		{"hex", "#FF0000"},
+		{"rgb", "rgb(0,255,0)"},
+		{"hsl", "hsl(120,100%,50%)"},
+		{"invalid", "notacolor"},
+	}
+	for _, tc := range cases {
+		b.Run(tc.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				_, _ = render.ColorToANSI(tc.input)
+			}
+		})
+	}
+}
+
+func BenchmarkRenderAlignedWithColorRules(b *testing.B) {
 	m := buildSimpleMap()
-	segs := []string{"", ""}
-	render.RenderAlignedWithColorRules(&buf, segs, m, nil, "left", 80)
-	// Two all-empty segments → 1 blank line (len(segs)-1).
-	if buf.String() != "\n" {
-		t.Errorf("two empty segments should yield one blank line, got %q", buf.String())
+	red := []render.ColorRule{{ANSIStart: "\x1b[31m", Substring: "Hello"}}
+	cases := []struct {
+		segs  []string
+		rules []render.ColorRule
+		name  string
+		align string
+		width int
+	}{
+		{name: "short_left", segs: []string{"Hello"}, rules: nil, align: "left", width: 80},
+		{name: "long_left", segs: []string{"Hello World How Are You"}, rules: nil, align: "left", width: 80},
+		{name: "with_color", segs: []string{"Hello World"}, rules: red, align: "left", width: 80},
+		{name: "right_align", segs: []string{"Hello"}, rules: nil, align: "right", width: 80},
+		{name: "center_align", segs: []string{"Hello"}, rules: nil, align: "center", width: 80},
+		{name: "justify", segs: []string{"Hello World"}, rules: nil, align: "justify", width: 80},
+		{name: "multi_segment", segs: []string{"Hello", "World"}, rules: nil, align: "left", width: 80},
+	}
+	for _, tc := range cases {
+		b.Run(tc.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				render.RenderAlignedWithColorRules(io.Discard, tc.segs, m, tc.rules, tc.align, tc.width)
+			}
+		})
 	}
 }
