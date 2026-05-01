@@ -14,7 +14,7 @@ const (
 	UsageColor   = "Usage: go run . [OPTION] [STRING]\n\nEX: go run . --color=<color> <substring to be colored> \"something\""
 	UsageOutput  = "Usage: go run . [OPTION] [STRING] [BANNER]\n\nEX: go run . --output=<fileName.txt> something standard"
 	UsageAlign   = "Usage: go run . [OPTION] [STRING] [BANNER]\n\nExample: go run . --align=right something standard"
-	UsageReverse = "Usage: go run . [OPTION]\n\nEX: go run . --reverse=<fileName>"
+	UsageReverse = "Usage: go run . [OPTION] [BANNER]\n\nEX: go run . --reverse=<fileName> thinkertoy"
 )
 
 // Fatal prints the usage string to stderr and exits with code 1.

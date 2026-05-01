@@ -78,9 +78,21 @@ func (c *classifier) countNonFlags(from int) int {
 
 func (c *classifier) parseColor(tok string, i int) int {
 	rule := RawColorRule{ColorValue: tok[8:]}
-	if i+1 < len(c.args) && !strings.HasPrefix(c.args[i+1], "--") && c.countNonFlags(i+2) > 0 {
-		rule.Substring = c.args[i+1]
-		i++
+	if i+1 < len(c.args) && !strings.HasPrefix(c.args[i+1], "--") {
+		sub := c.args[i+1]
+		// Smart Substring: Only consume the next token as a substring if it
+		// is actually contained within one of the remaining non-flag tokens.
+		isSub := false
+		for j := i + 2; j < len(c.args); j++ {
+			if !strings.HasPrefix(c.args[j], "--") && strings.Contains(c.args[j], sub) {
+				isSub = true
+				break
+			}
+		}
+		if isSub {
+			rule.Substring = sub
+			i++
+		}
 	}
 	c.result.ColorRules = append(c.result.ColorRules, rule)
 	return i
@@ -228,6 +240,15 @@ func IsKnownFlagOption(s string) bool {
 
 // ResolveBannerName returns the banner name from positional args, defaulting to "standard".
 func ResolveBannerName(args ParsedArgs) string {
+	// In reverse mode, if a positional argument is present, it is the banner name.
+	if args.ReverseValue != "" {
+		if len(args.Positional) >= 1 {
+			return args.Positional[0]
+		}
+		return "standard"
+	}
+
+	// In standard rendering mode, the banner name is the second positional argument.
 	if len(args.Positional) == 2 {
 		return args.Positional[1]
 	}

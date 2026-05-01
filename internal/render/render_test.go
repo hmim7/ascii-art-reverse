@@ -154,6 +154,31 @@ func TestColorToANSI(t *testing.T) {
 	}
 }
 
+// --- StripANSI ---
+
+func TestStripANSI(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{name: "NoANSI", input: "hello", want: "hello"},
+		{name: "SimpleRed", input: "\x1b[31mhello\x1b[0m", want: "hello"},
+		{name: "MultipleSequences", input: "\x1b[31mH\x1b[0m\x1b[32me\x1b[0mll\x1b[34mo\x1b[0m", want: "Hello"},
+		{name: "Empty", input: "", want: ""},
+		{name: "OnlyANSI", input: "\x1b[31m\x1b[0m", want: ""},
+		{name: "Incomplete", input: "hi\x1b[31", want: "hi\x1b[31"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(st *testing.T) {
+			if got := render.StripANSI(tt.input); got != tt.want {
+				st.Errorf("StripANSI() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 // --- WrapWithColor (task06) ---
 
 func TestWrapWithColor(t *testing.T) {

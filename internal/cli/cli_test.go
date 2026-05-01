@@ -85,7 +85,7 @@ func ExampleClassifyArgs() {
 	fmt.Println(parsed.Positional)
 	fmt.Println(parsed.ColorRules[0].ColorValue)
 	// Output:
-	// [standard]
+	// [Hello standard]
 	// red
 }
 
@@ -399,11 +399,18 @@ func TestClassifyArgs_MixedFlags(t *testing.T) {
 			wantMalformed: 1,
 		},
 		{
+			name:        "reverse with specific banner",
+			args:        []string{"--reverse=test.txt", "thinkertoy"},
+			wantReverse: "test.txt",
+			wantPos:     []string{"thinkertoy"},
+			wantUnknown: 0,
+		},
+		{
 			name:           "stop flags delimiter in color parse",
 			args:           []string{"--color=red", "sub", "--", "--output=x", "text"},
-			wantPos:        []string{"--output=x", "text"},
+			wantPos:        []string{"sub", "--output=x", "text"},
 			wantColorCount: 1,
-			wantColorSub:   "sub",
+			wantColorSub:   "",
 			wantUnknown:    0,
 		},
 	}

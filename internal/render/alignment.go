@@ -30,20 +30,42 @@ func ResolveWidth(usingFileOutput bool) int {
 	return DetectTerminalWidth()
 }
 
+// StripANSI removes all ANSI escape sequences from s.
+func StripANSI(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	i := 0
+	for i < len(s) {
+		if s[i] == '\x1b' && i+1 < len(s) && s[i+1] == '[' {
+			j := i + 2
+			for j < len(s) && s[j] != 'm' {
+				j++
+			}
+			if j < len(s) && s[j] == 'm' {
+				i = j + 1
+				continue
+			}
+		}
+		b.WriteByte(s[i])
+		i++
+	}
+	return b.String()
+}
+
 // visibleWidth counts the printable byte width of s, ignoring ANSI CSI sequences.
 func visibleWidth(s string) int {
 	width := 0
 	i := 0
 	for i < len(s) {
 		if s[i] == '\x1b' && i+1 < len(s) && s[i+1] == '[' {
-			i += 2
-			for i < len(s) && s[i] != 'm' {
-				i++
+			j := i + 2
+			for j < len(s) && s[j] != 'm' {
+				j++
 			}
-			if i < len(s) {
-				i++ // consume 'm'
+			if j < len(s) && s[j] == 'm' {
+				i = j + 1
+				continue
 			}
-			continue
 		}
 		width++
 		i++

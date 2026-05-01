@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"ascii-art-reverse/internal/render"
 )
 
 // Run reads the ASCII art file at filePath, reconstructs the original
@@ -17,7 +19,12 @@ func Run(filePath string, bannerMap map[rune][]string) (string, error) {
 	}
 
 	content := strings.ReplaceAll(string(data), "\r\n", "\n")
-	lines := strings.Split(content, "\n")
+	rawLines := strings.Split(content, "\n")
+	lines := make([]string, len(rawLines))
+	for i, l := range rawLines {
+		lines[i] = render.StripANSI(l)
+	}
+
 	// Strip trailing empty lines left by the final newline.
 	for len(lines) > 0 && lines[len(lines)-1] == "" {
 		lines = lines[:len(lines)-1]
@@ -91,16 +98,17 @@ func matchSegment(lines []string, rev map[string]rune, widths []int) (string, er
 
 	var result strings.Builder
 	col := 0
-	for col < maxCol {
+	// Scan until we hit the visible end of the art.
+	// Special case: if maxCol is 0 (all 8 lines were trimmed), try to match at least one glyph.
+	for col < maxCol || (col == 0 && maxCol == 0) {
 		matched := false
 		for _, w := range widths {
-			if col+w > maxCol {
-				continue
-			}
 			cols := make([]string, len(lines))
 			for i, l := range lines {
 				end := col + w
-				if end > len(l) {
+				if col >= len(l) {
+					cols[i] = strings.Repeat(" ", w)
+				} else if end > len(l) {
 					cols[i] = l[col:] + strings.Repeat(" ", end-len(l))
 				} else {
 					cols[i] = l[col:end]
@@ -115,6 +123,9 @@ func matchSegment(lines []string, rev map[string]rune, widths []int) (string, er
 			}
 		}
 		if !matched {
+			if col >= maxCol && col > 0 {
+				break // No match found beyond the visible art; we are done.
+			}
 			return "", fmt.Errorf("unrecognized glyph at column %d", col)
 		}
 	}
