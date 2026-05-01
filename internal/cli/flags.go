@@ -32,10 +32,10 @@ type ParsedArgs struct {
 	AlignValue   string // "" means default (left); set when --align= is provided
 	ReverseValue string
 	ColorRules   []RawColorRule
-	StdinMode    bool
 	Positional   []string // [text] or [text, banner]
 	UnknownFlags []FlagError
 	Malformed    []FlagError
+	StdinMode    bool
 }
 
 // classifier holds mutable state for a single ClassifyArgs pass.
@@ -144,8 +144,10 @@ func (c *classifier) parseDelimiter(i int) int {
 // Checks known prefixes first; falls back to unknown.
 func (c *classifier) classifyBareFlag(tok string) {
 	known := []struct{ prefix, cat string }{
-		{"--color", "color"}, {"--output", "output"},
-		{"--align", "align"}, {"--reverse", "reverse"},
+		{"--color", "color"},
+		{"--output", "output"},
+		{"--align", "align"},
+		{"--reverse", "reverse"},
 	}
 	for _, k := range known {
 		if strings.HasPrefix(tok, k.prefix) {

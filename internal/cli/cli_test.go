@@ -28,9 +28,9 @@ func TestClassifyArgs_UnknownFlag(t *testing.T) {
 func TestClassifyArgs_DoubleDashDelimiter(t *testing.T) {
 	tests := []struct {
 		name    string
+		wantOut string
 		args    []string
 		wantPos []string
-		wantOut string
 		wantCol int // count of color rules
 		wantUnk int // count of unknown flags
 	}{
@@ -83,8 +83,8 @@ func TestClassifyArgs_DoubleDashDelimiter(t *testing.T) {
 func TestSelectUsage(t *testing.T) {
 	tests := []struct {
 		name string
-		args cli.ParsedArgs
 		want string
+		args cli.ParsedArgs
 	}{
 		{
 			name: "Basic Usage",
@@ -240,8 +240,8 @@ func TestEmitWarnings(t *testing.T) {
 func TestEmitWarnings_MultipleInvalid(t *testing.T) {
 	tests := []struct {
 		name          string
-		args          cli.ParsedArgs
 		wantSubstring string
+		args          cli.ParsedArgs
 	}{
 		{
 			name: "output then align produces one line in input order",
@@ -414,12 +414,12 @@ func TestClassifyArgs_MixedFlags(t *testing.T) {
 func TestClassifyArgs_StdinMode(t *testing.T) {
 	tests := []struct {
 		name        string
-		args        []string
-		wantStdin   bool
-		wantPos     []string
 		wantOutput  string
 		wantAlign   string
 		wantReverse string
+		args        []string
+		wantPos     []string
+		wantStdin   bool
 	}{
 		{
 			name:      "stdin only",
