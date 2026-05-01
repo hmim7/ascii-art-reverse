@@ -61,7 +61,7 @@ The CLI enforces strict flag validation and always exits with code 1 on bad inpu
 - **Banner loading:** Files are validated for exactly 855 lines. CRLF is normalized. Leading vs. trailing separator format is detected automatically. All 7 bundled banners are fully loaded and tested.
 - **Reverse algorithm:** Greedy column-scan matching art signatures against a pre-built inverse banner map. CRLF normalization applied before splitting. Supports all printable ASCII characters and multi-line art.
 - **Gopher easter egg:** `containsNonASCII` treats `\n`, `\t`, and `\` as neutral; any rune outside `[32, 126]` triggers the Peeking Gopher.
-- **Testing:** 40 passing unit tests across 5 packages including table-driven tests, golden-file round-trip tests for all 8 example files (+ shadow and multi-line), and targeted edge-case coverage.
+- **Testing:** 100% table-driven testing suite across all packages. Includes golden-file round-trip integration tests, comprehensive fuzzing for every entry point, and performance benchmarks for core algorithms.
 
 ## Project Structure
 ```plaintext
@@ -99,12 +99,12 @@ ascii-art-reverse
 
 - **Data Validation:** Strict `--flag=value` syntax enforced. Banner files validated for exactly 855 lines; path traversal prevented via name sanitization. Invalid banners always fatal — no silent fallback.
 - **Warning consolidation:** All malformed flags in one session emit a single consolidated `warning: invalid <cats> flag(s) "<raw…>"` line, followed by individual warnings for duplicate flags, then any double-dash hints.
-- **Visual / Output Integrity:** ANSI escape sequences precisely injected to avoid color bleeding. Alignment pads based on visible (non-ANSI) width. Terminal width detected via `COLUMNS` env var → ioctl → fallback 80.
-- **Testing:**
+- **Memory & Quality:** Structs are optimized for memory alignment to minimize padding and pointer scanning. The codebase is strictly verified against `shadow`, `fieldalignment`, and `errcheck` analyzers.
+- **Verification Suite:**
   ```bash
-  go test ./...
-  go test ./... -v
-  go vet ./...
+  go test -race -v ./...        # Run 100% table-driven suite with race detector
+  go test -fuzz=Fuzz ./...      # Execute fuzzing targets
+  go test -bench=. ./...        # Run performance benchmarks
   ```
 
 ## Project Documentation References:
