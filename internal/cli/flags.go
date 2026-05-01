@@ -120,6 +120,10 @@ func (c *classifier) parseAlign(tok string) {
 
 func (c *classifier) parseReverse(tok string) {
 	val := tok[10:]
+	if val == "" || !strings.HasSuffix(strings.ToLower(val), ".txt") {
+		c.result.Malformed = append(c.result.Malformed, FlagError{Raw: tok, Category: "reverse"})
+		return
+	}
 	if c.result.ReverseValue != "" {
 		c.result.Malformed = append(c.result.Malformed, FlagError{
 			Raw:      "--reverse=" + c.result.ReverseValue,

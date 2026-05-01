@@ -64,7 +64,7 @@ func EmitWarnings(args ParsedArgs) {
 	var invalid []FlagError
 	for _, f := range args.Malformed {
 		switch f.Category {
-		case "color", "output", "align", "reverse", "dup-reverse":
+		case "color", "output", "align", "reverse":
 			invalid = append(invalid, f)
 		}
 	}
@@ -79,6 +79,8 @@ func EmitWarnings(args ParsedArgs) {
 			WarnOutputRedirected(args.OutputValue, f.Raw[9:])
 		case "dup-align":
 			WarnAlignOverridden(f.Raw, args.AlignValue)
+		case "dup-reverse":
+			warnf("warning: reverse redirected to %q; previous flag %q ignored", args.ReverseValue, f.Raw)
 		}
 	}
 
@@ -101,9 +103,13 @@ func WarnInvalidFlags(flags []FlagError) {
 	seenCat := make(map[string]bool)
 	var cats, raws []string
 	for _, f := range flags {
-		if !seenCat[f.Category] {
-			seenCat[f.Category] = true
-			cats = append(cats, f.Category)
+		cat := f.Category
+		if strings.HasPrefix(cat, "dup-") {
+			cat = cat[4:]
+		}
+		if !seenCat[cat] {
+			seenCat[cat] = true
+			cats = append(cats, cat)
 		}
 		raws = append(raws, fmt.Sprintf("%q", f.Raw))
 	}

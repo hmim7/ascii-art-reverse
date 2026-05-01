@@ -362,6 +362,16 @@ func TestClassifyArgs_MixedFlags(t *testing.T) {
 			wantMalformed: 1,
 		},
 		{
+			name:          "malformed reverse extension",
+			args:          []string{"--reverse=example07", "text"},
+			wantOutput:    "",
+			wantReverse:   "",
+			wantAlign:     "",
+			wantPos:       []string{"text"},
+			wantMalformed: 1,
+			wantUnknown:   0,
+		},
+		{
 			name:           "duplicate output flag (last wins)",
 			args:           []string{"--output=first.txt", "--output=second.txt", "hello"},
 			wantOutput:     "second.txt",
