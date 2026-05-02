@@ -13,6 +13,7 @@ import (
 // --- ParseInput (task05) ---
 
 func TestParseInput(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name  string
 		input string
@@ -44,9 +45,9 @@ func TestParseInput(t *testing.T) {
 			want:  []string{"hllo"},
 		},
 		{
-			name:  "TabFiltered",
+			name:  "TabExpanded",
 			input: "A\\tB",
-			want:  []string{"AB"},
+			want:  []string{"A   B"},
 		},
 		{
 			name:  "BareCRSplits",
@@ -91,6 +92,7 @@ func TestParseInput(t *testing.T) {
 // --- Mapper (task05) ---
 
 func TestMapper(t *testing.T) {
+	t.Parallel()
 	bannerMap := map[rune][]string{
 		'A': {"l1", "l2", "l3", "l4", "l5", "l6", "l7", "l8"},
 	}
@@ -124,6 +126,7 @@ func TestMapper(t *testing.T) {
 // --- ColorToANSI (task06) ---
 
 func TestColorToANSI(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		input  string
@@ -157,6 +160,7 @@ func TestColorToANSI(t *testing.T) {
 // --- StripANSI ---
 
 func TestStripANSI(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name  string
 		input string
@@ -182,6 +186,7 @@ func TestStripANSI(t *testing.T) {
 // --- WrapWithColor (task06) ---
 
 func TestWrapWithColor(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		input     string
@@ -221,6 +226,7 @@ func TestWrapWithColor(t *testing.T) {
 // --- ShouldRenderGopher ---
 
 func TestShouldRenderGopher(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		text     string

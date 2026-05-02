@@ -24,6 +24,7 @@ func loadBanner(t *testing.T, name string) map[rune][]string {
 }
 
 func TestRun(t *testing.T) {
+	t.Parallel()
 	// Cache for loaded banners to avoid redundant I/O
 	bannerCache := make(map[string]map[rune][]string)
 	getBanner := func(name string) map[rune][]string {
@@ -65,6 +66,7 @@ func TestRun(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(st *testing.T) {
+			st.Parallel()
 			bm := getBanner(tt.bannerName)
 			got, err := reverse.Run(tt.file, bm)
 			if (err != nil) != tt.wantErr {

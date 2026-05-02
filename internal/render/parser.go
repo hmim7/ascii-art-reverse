@@ -19,6 +19,12 @@ func preprocess(s string) string {
 	b.Grow(len(s))
 	i := 0
 	for i < len(s) {
+		// Handle real tab character.
+		if s[i] == '\t' {
+			b.WriteString("   ")
+			i++
+			continue
+		}
 		// Normalize actual \r\n and \r to \n.
 		if s[i] == '\r' {
 			if i+1 < len(s) && s[i+1] == '\n' {
@@ -28,19 +34,33 @@ func preprocess(s string) string {
 			i++
 			continue
 		}
-		// Expand backslash escape sequences from CLI input.
+		// Handle backslash escape sequences.
 		if s[i] == '\\' && i+1 < len(s) {
+			if s[i+1] == '\\' {
+				// Check for \\n or \\t sequences.
+				if i+2 < len(s) {
+					if s[i+2] == 'n' {
+						b.WriteString("\\\n")
+						i += 3
+						continue
+					}
+					if s[i+2] == 't' {
+						b.WriteString("\\   ")
+						i += 3
+						continue
+					}
+				}
+				b.WriteByte('\\')
+				i += 2
+				continue
+			}
 			switch s[i+1] {
 			case 'n':
 				b.WriteByte('\n')
 				i += 2
 				continue
 			case 't':
-				b.WriteByte('\t')
-				i += 2
-				continue
-			case '\\':
-				b.WriteByte('\\')
+				b.WriteString("   ")
 				i += 2
 				continue
 			}

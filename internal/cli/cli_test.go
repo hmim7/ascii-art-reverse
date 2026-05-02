@@ -13,6 +13,7 @@ import (
 )
 
 func TestClassifyArgs_Fundamentals(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		wantOut string
@@ -61,6 +62,7 @@ func TestClassifyArgs_Fundamentals(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(st *testing.T) {
+			st.Parallel()
 			got := cli.ClassifyArgs(tt.args)
 
 			if !reflect.DeepEqual(got.Positional, tt.wantPos) {
@@ -233,6 +235,7 @@ func TestEmitWarnings(t *testing.T) {
 }
 
 func TestClassifyArgs_MixedFlags(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		args           []string
 		wantPos        []string
@@ -355,6 +358,7 @@ func TestClassifyArgs_MixedFlags(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(st *testing.T) {
+			st.Parallel()
 			got := cli.ClassifyArgs(tt.args)
 
 			if got.OutputValue != tt.wantOutput {
@@ -434,6 +438,7 @@ func TestWarnFunctions(t *testing.T) {
 
 // TestIsKnownFlagOption covers every recognized prefix and unknown inputs.
 func TestIsKnownFlagOption(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input string
 		want  bool
@@ -451,6 +456,7 @@ func TestIsKnownFlagOption(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(st *testing.T) {
+			st.Parallel()
 			if got := cli.IsKnownFlagOption(tt.input); got != tt.want {
 				st.Errorf("IsKnownFlagOption(%q) = %v, want %v", tt.input, got, tt.want)
 			}
@@ -554,6 +560,7 @@ func TestBuildColorRules(t *testing.T) {
 
 // TestResolveInput covers positional, empty, and stdin paths.
 func TestResolveInput(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		args cli.ParsedArgs
@@ -573,6 +580,7 @@ func TestResolveInput(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(st *testing.T) {
+			st.Parallel()
 			if got := cli.ResolveInput(tt.args); got != tt.want {
 				st.Errorf("ResolveInput() = %q, want %q", got, tt.want)
 			}
@@ -582,6 +590,7 @@ func TestResolveInput(t *testing.T) {
 
 // TestClassifyArgs_ColorWithSubstring covers parseColor consuming the next token.
 func TestClassifyArgs_ColorWithSubstring(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		args         []string
 		name         string
@@ -610,6 +619,7 @@ func TestClassifyArgs_ColorWithSubstring(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(st *testing.T) {
+			st.Parallel()
 			got := cli.ClassifyArgs(tt.args)
 			if len(got.ColorRules) != tt.wantColorLen {
 				st.Fatalf("ColorRules count = %d, want %d", len(got.ColorRules), tt.wantColorLen)
@@ -669,6 +679,7 @@ func TestGuardFunctions(t *testing.T) {
 }
 
 func TestClassifyArgs_StdinMode(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		args        []string
 		wantPos     []string
@@ -703,6 +714,7 @@ func TestClassifyArgs_StdinMode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(st *testing.T) {
+			st.Parallel()
 			got := cli.ClassifyArgs(tt.args)
 			if got.StdinMode != tt.wantStdin {
 				st.Errorf("StdinMode = %v, want %v", got.StdinMode, tt.wantStdin)

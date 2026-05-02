@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 )
 
-// GetWriter resolves the io.Writer for the render pipeline.
+// NewWriter resolves the io.Writer for the render pipeline.
 //
 //   - outputPath == "" → returns (os.Stdout, nil, nil)
 //   - outputPath != "" → opens the file with O_WRONLY|O_CREATE|O_TRUNC, perm 0600
@@ -14,7 +14,7 @@ import (
 // The *os.File is returned separately so the caller can defer file.Close().
 // Always overwrites (O_TRUNC); appending is not supported.
 // ANSI escape codes are written unchanged into the file.
-func GetWriter(outputPath string) (io.Writer, *os.File, error) {
+func NewWriter(outputPath string) (io.Writer, *os.File, error) {
 	if outputPath == "" {
 		return os.Stdout, nil, nil
 	}

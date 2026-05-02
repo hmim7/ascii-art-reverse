@@ -7,7 +7,8 @@ import (
 	"ascii-art-reverse/internal/output"
 )
 
-func TestGetWriter_Table(t *testing.T) {
+func TestNewWriter_Table(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		pathFn     func() string // lazy so TempDir is per-test
 		name       string
@@ -34,7 +35,8 @@ func TestGetWriter_Table(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(st *testing.T) {
-			w, f, err := output.GetWriter(tt.pathFn())
+			st.Parallel()
+			w, f, err := output.NewWriter(tt.pathFn())
 			if tt.wantErr {
 				if err == nil {
 					st.Error("expected error, got nil")

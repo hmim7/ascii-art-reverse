@@ -45,7 +45,7 @@ func main() {
 		return
 	}
 
-	writer, file, err := output.GetWriter(args.OutputValue)
+	writer, file, err := output.NewWriter(args.OutputValue)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

@@ -14,7 +14,7 @@ const (
 	UsageColor   = "Usage: go run . [OPTION] [STRING]\n\nEX: go run . --color=<color> <substring to be colored> \"something\""
 	UsageOutput  = "Usage: go run . [OPTION] [STRING] [BANNER]\n\nEX: go run . --output=<fileName.txt> something standard"
 	UsageAlign   = "Usage: go run . [OPTION] [STRING] [BANNER]\n\nExample: go run . --align=right something standard"
-	UsageReverse = "Usage: go run . [OPTION] [BANNER]\n\nEX: go run . --reverse=<fileName> thinkertoy"
+	UsageReverse = "Usage: go run . [OPTION]\n\nEX: go run . --reverse=<fileName>"
 )
 
 // Fatal prints the usage string to stderr and exits with code 1.
@@ -38,6 +38,20 @@ func SelectUsage(args ParsedArgs) string {
 		case strings.HasPrefix(arg, "--align"):
 			return UsageAlign
 		case strings.HasPrefix(arg, "--color"):
+			return UsageColor
+		}
+	}
+	// Unknown flags that look like misspelled known flags (e.g. --colours, --ouput, --revrese, --allign).
+	for _, f := range args.UnknownFlags {
+		raw := strings.ToLower(f.Raw)
+		switch {
+		case strings.HasPrefix(raw, "--rev"):
+			return UsageReverse
+		case strings.HasPrefix(raw, "--out"):
+			return UsageOutput
+		case strings.HasPrefix(raw, "--al"):
+			return UsageAlign
+		case strings.HasPrefix(raw, "--col"):
 			return UsageColor
 		}
 	}
