@@ -21,7 +21,7 @@ go build -o ascii-art-reverse .
 
 ## Usage
 
-### Part 1: CLI Usage
+### CLI Usage
 ```bash
 # Standard Usage (defaults to standard banner)
 go run . "Hello World"
@@ -37,8 +37,8 @@ go run . --align=center "Centered Art"
 go run . --output=output.txt "Persisted Art"
 
 # Reverse Engineering
-go run . --reverse=example.txt
-go run . --reverse=example.txt shadow
+go run . --reverse=example00.txt
+go run . --reverse=colored_hello.txt standard
 ```
 
 ### Error Handling
@@ -109,10 +109,11 @@ ascii-art-reverse
 
 ## Project Documentation References:
 
-- PRD
-- Golden Tests
-- Audit Cases
-- Edge Cases
+- [PRD](.docs/PRD.md)
+- [Error Cases](.docs/error-cases.md)
+- [Audit Cases](.docs/audit-cases.md)
+- [Edge Cases](.docs/edge-cases.md)
+- [Golden Tests](.docs/golden-tests.md)
 
 ---
 *This project is part of the Zone01 Campus curriculum. It is built and maintained according to the guidelines specified in the `.docs/` directory.*
