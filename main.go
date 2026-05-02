@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"ascii-art-reverse/internal/banner"
 	"ascii-art-reverse/internal/cli"
@@ -33,6 +34,10 @@ func main() {
 		var result string
 		result, err = reverse.Run(args.ReverseValue, bannerMap)
 		if err != nil {
+			if strings.HasPrefix(err.Error(), "unrecognized glyph") {
+				cli.WarnReverseMismatch(args.ReverseValue)
+				cli.Fatal(cli.UsageReverse)
+			}
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}

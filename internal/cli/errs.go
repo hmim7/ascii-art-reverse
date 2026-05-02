@@ -26,33 +26,20 @@ func Fatal(usage string) {
 // SelectUsage picks the correct UsageXxx constant based on which valid flag
 // was present in args. Falls back to UsageBasic when no flag is recognized.
 func SelectUsage(args ParsedArgs) string {
-	// Return the usage for the first malformed flag (input order) that maps
-	// to a known category.
-	for _, f := range args.Malformed {
-		switch f.Category {
-		case "reverse", "dup-reverse":
+	for _, arg := range os.Args {
+		if arg == "--" {
+			break
+		}
+		switch {
+		case strings.HasPrefix(arg, "--reverse"):
 			return UsageReverse
-		case "output", "dup-output":
+		case strings.HasPrefix(arg, "--output"):
 			return UsageOutput
-		case "align", "dup-align":
+		case strings.HasPrefix(arg, "--align"):
 			return UsageAlign
-		case "color":
+		case strings.HasPrefix(arg, "--color"):
 			return UsageColor
 		}
-	}
-
-	// No malformed flags — fall back to the highest-priority valid flag.
-	if args.ReverseValue != "" {
-		return UsageReverse
-	}
-	if args.OutputValue != "" {
-		return UsageOutput
-	}
-	if args.AlignValue != "" {
-		return UsageAlign
-	}
-	if len(args.ColorRules) > 0 {
-		return UsageColor
 	}
 	return UsageBasic
 }
@@ -85,10 +72,14 @@ func EmitWarnings(args ParsedArgs) {
 	}
 
 	// Provide a hint for unknown flags that look like they might be intended as strings.
+	var dashFlags []string
 	for _, f := range args.UnknownFlags {
 		if strings.HasPrefix(f.Raw, "--") && len(f.Raw) >= 2 {
-			WarnDoubleDashHint(f.Raw)
+			dashFlags = append(dashFlags, f.Raw)
 		}
+	}
+	if len(dashFlags) > 0 {
+		WarnDoubleDashHint(dashFlags...)
 	}
 }
 
@@ -103,10 +94,7 @@ func WarnInvalidFlags(flags []FlagError) {
 	seenCat := make(map[string]bool)
 	var cats, raws []string
 	for _, f := range flags {
-		cat := f.Category
-		if strings.HasPrefix(cat, "dup-") {
-			cat = cat[4:]
-		}
+		cat := strings.TrimPrefix(f.Category, "dup-")
 		if !seenCat[cat] {
 			seenCat[cat] = true
 			cats = append(cats, cat)
@@ -129,8 +117,17 @@ func WarnAlignOverridden(oldVal, newVal string) {
 	warnf("warning: previous align flag %q overridden by %q", oldVal, newVal)
 }
 
-func WarnDoubleDashHint(val string) {
-	warnf("hint: to render %q as ascii-art, use the \"--\" delimiter before [STRING] (e.g., go run . -- %q)", val, val)
+func WarnDoubleDashHint(vals ...string) {
+	if len(vals) == 0 {
+		return
+	}
+	quoted := make([]string, len(vals))
+	for i, v := range vals {
+		quoted[i] = fmt.Sprintf("%q", v)
+	}
+
+	warnf("hint: to render %s as ascii-art, use the \"--\" delimiter before [STRING] (e.g., go run . -- %s)",
+		strings.Join(quoted, ", "), strings.Join(vals, " "))
 }
 
 func WarnBannerNotFound(name string) {
@@ -141,8 +138,26 @@ func WarnBannerInvalid(name string) {
 	warnf("warning: banner %q invalid (expected 855 lines)", name)
 }
 
-func WarnFlagsAfterString(flag string) {
-	warnf("hint: %q looks like a flag option; when using \"--\", all flag options must be placed before the delimiter (e.g., go run . %s -- [STRING])", flag, flag)
+func WarnReverseMismatch(fileName string) {
+	warnf("warning: the provided banner does not match the art in %q; please provide the correct [BANNER] argument", fileName)
+}
+
+func WarnFlagsAfterString(flags ...string) {
+	if len(flags) == 0 {
+		return
+	}
+	quoted := make([]string, len(flags))
+	for i, f := range flags {
+		quoted[i] = fmt.Sprintf("%q", f)
+	}
+	noun := "option"
+	verb := "looks like a"
+	if len(flags) > 1 {
+		noun = "options"
+		verb = "look like"
+	}
+	warnf("hint: %s %s flag %s; when using \"--\", all flag options must be placed before the delimiter (e.g., go run . %s -- [STRING])",
+		strings.Join(quoted, ", "), verb, noun, strings.Join(flags, " "))
 }
 
 // ValidateOrFatal exits with the appropriate usage message if any malformed
@@ -155,7 +170,12 @@ func ValidateOrFatal(args ParsedArgs) {
 			fatalMalformed = true
 		}
 	}
-	if len(args.UnknownFlags) > 0 || fatalMalformed {
+	reverseConflict := args.ReverseValue != "" && (args.OutputValue != "" || args.AlignValue != "" || len(args.ColorRules) > 0 || args.StdinMode)
+	reverseOverflow := args.ReverseValue != "" && len(args.Positional) > 1
+	noInput := args.ReverseValue == "" && !args.StdinMode && len(args.Positional) == 0
+
+	isMixed := reverseConflict || reverseOverflow || noInput
+	if len(args.UnknownFlags) > 0 || fatalMalformed || isMixed {
 		Fatal(SelectUsage(args))
 	}
 }
@@ -164,10 +184,14 @@ func ValidateOrFatal(args ParsedArgs) {
 // arguments are given, emitting a hint for any that look like flag options.
 func CheckPositionalsOrFatal(args ParsedArgs) {
 	if len(args.Positional) > 2 {
+		var misplaced []string
 		for _, pos := range args.Positional[1:] {
 			if IsKnownFlagOption(pos) {
-				WarnFlagsAfterString(pos)
+				misplaced = append(misplaced, pos)
 			}
+		}
+		if len(misplaced) > 0 {
+			WarnFlagsAfterString(misplaced...)
 		}
 		Fatal(UsageBasic)
 	}

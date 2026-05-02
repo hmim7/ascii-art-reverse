@@ -57,25 +57,6 @@ func newClassifier(args []string) *classifier {
 	}
 }
 
-// countNonFlags returns the number of non-flag tokens in args[from:].
-func (c *classifier) countNonFlags(from int) int {
-	n, stopFlags := 0, false
-	for j := from; j < len(c.args); j++ {
-		if stopFlags {
-			n++
-			continue
-		}
-		if c.args[j] == "--" && j < len(c.args)-1 && strings.HasPrefix(c.args[j+1], "--") {
-			stopFlags = true
-			continue
-		}
-		if !strings.HasPrefix(c.args[j], "--") {
-			n++
-		}
-	}
-	return n
-}
-
 func (c *classifier) parseColor(tok string, i int) int {
 	rule := RawColorRule{ColorValue: tok[8:]}
 	if i+1 < len(c.args) && !strings.HasPrefix(c.args[i+1], "--") {

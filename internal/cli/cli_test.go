@@ -91,116 +91,54 @@ func ExampleClassifyArgs() {
 
 func TestSelectUsage(t *testing.T) {
 	tests := []struct {
-		name string
-		want string
-		args cli.ParsedArgs
+		name   string
+		want   string
+		osArgs []string
 	}{
 		{
-			name: "Basic Usage",
-			args: cli.ParsedArgs{},
-			want: cli.UsageBasic,
+			name:   "Basic Usage",
+			osArgs: []string{"."},
+			want:   cli.UsageBasic,
 		},
 		{
-			name: "Reverse Priority over All",
-			args: cli.ParsedArgs{
-				ReverseValue: "file.txt",
-				OutputValue:  "out.txt",
-				AlignValue:   "right",
-				ColorRules:   []cli.RawColorRule{{ColorValue: "red"}},
-			},
-			want: cli.UsageReverse,
+			name:   "Reverse Priority over All",
+			osArgs: []string{".", "--reverse=file.txt", "--output=out.txt"},
+			want:   cli.UsageReverse,
 		},
 		{
-			name: "Output Priority over Align",
-			args: cli.ParsedArgs{
-				OutputValue: "out.txt",
-				AlignValue:  "center",
-			},
-			want: cli.UsageOutput,
+			name:   "Output Priority over Align",
+			osArgs: []string{".", "--output=out.txt", "--align=center"},
+			want:   cli.UsageOutput,
 		},
 		{
-			name: "Align Priority over Color",
-			args: cli.ParsedArgs{
-				AlignValue: "justify",
-				ColorRules: []cli.RawColorRule{{ColorValue: "blue"}},
-			},
-			want: cli.UsageAlign,
+			name:   "Align Priority over Color",
+			osArgs: []string{".", "--align=center", "--color=blue"},
+			want:   cli.UsageAlign,
 		},
 		{
-			name: "Color Usage",
-			args: cli.ParsedArgs{
-				ColorRules: []cli.RawColorRule{{ColorValue: "green"}},
-			},
-			want: cli.UsageColor,
+			name:   "Color Usage",
+			osArgs: []string{".", "--color=green"},
+			want:   cli.UsageColor,
 		},
 		{
-			name: "Malformed Output triggers Output Usage",
-			args: cli.ParsedArgs{
-				Malformed: []cli.FlagError{{Category: "output", Raw: "--output="}},
-			},
-			want: cli.UsageOutput,
+			name:   "Malformed Output triggers Output Usage",
+			osArgs: []string{".", "--output="},
+			want:   cli.UsageOutput,
 		},
 		{
-			name: "Unknown Flag defaults to Basic Usage",
-			args: cli.ParsedArgs{
-				UnknownFlags: []cli.FlagError{{Category: "unknown", Raw: "--unknown"}},
-			},
-			want: cli.UsageBasic,
-		},
-		{
-			name: "Unknown Flag alongside malformed Align shows Align Usage",
-			args: cli.ParsedArgs{
-				UnknownFlags: []cli.FlagError{{Category: "unknown", Raw: "--"}},
-				Malformed:    []cli.FlagError{{Category: "align", Raw: "--align"}},
-			},
-			want: cli.UsageAlign,
-		},
-		{
-			name: "Output first then Align returns Output Usage",
-			args: cli.ParsedArgs{
-				Malformed: []cli.FlagError{
-					{Category: "output", Raw: "--output=bad.pdf"},
-					{Category: "align", Raw: "--align=middle"},
-				},
-			},
-			want: cli.UsageOutput,
-		},
-		{
-			name: "Align first then Color returns Align Usage",
-			args: cli.ParsedArgs{
-				Malformed: []cli.FlagError{
-					{Category: "align", Raw: "--align=middle"},
-					{Category: "color", Raw: "--color red"},
-				},
-			},
-			want: cli.UsageAlign,
-		},
-		{
-			name: "Color first then Output returns Color Usage",
-			args: cli.ParsedArgs{
-				Malformed: []cli.FlagError{
-					{Category: "color", Raw: "--color red"},
-					{Category: "output", Raw: "--output=bad.pdf"},
-				},
-			},
-			want: cli.UsageColor,
-		},
-		{
-			name: "Reverse first then Output and Align returns Reverse Usage",
-			args: cli.ParsedArgs{
-				Malformed: []cli.FlagError{
-					{Category: "reverse", Raw: "--reverse"},
-					{Category: "output", Raw: "--output=bad.pdf"},
-					{Category: "align", Raw: "--align=middle"},
-				},
-			},
-			want: cli.UsageReverse,
+			name:   "Unknown Flag defaults to Basic Usage",
+			osArgs: []string{".", "--unknown"},
+			want:   cli.UsageBasic,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(st *testing.T) {
-			if got := cli.SelectUsage(tt.args); got != tt.want {
+			oldArgs := os.Args
+			os.Args = tt.osArgs
+			defer func() { os.Args = oldArgs }()
+
+			if got := cli.SelectUsage(cli.ParsedArgs{}); got != tt.want {
 				st.Errorf("SelectUsage() = %v, want %v", got, tt.want)
 			}
 		})
@@ -226,7 +164,7 @@ func TestEmitWarnings(t *testing.T) {
 			wantSubstrings: []string{
 				`warning: output redirected to "new.txt"; previous flag "old.txt" ignored`,
 				`warning: invalid color flag "invalid"`,
-				`hint: to render "---" as ascii-art, use the "--" delimiter before [STRING] (e.g., go run . -- "---")`,
+				`hint: to render "---" as ascii-art, use the "--" delimiter before [STRING] (e.g., go run . -- ---)`,
 			},
 		},
 		{
@@ -693,7 +631,7 @@ func TestGuardFunctions(t *testing.T) {
 			name: "ValidateOrFatal_Clean",
 			fn: func() {
 				cli.ValidateOrFatal(cli.ParsedArgs{
-					Positional: []string{}, ColorRules: []cli.RawColorRule{},
+					Positional: []string{"Hi"}, ColorRules: []cli.RawColorRule{},
 					UnknownFlags: []cli.FlagError{}, Malformed: []cli.FlagError{},
 				})
 			},

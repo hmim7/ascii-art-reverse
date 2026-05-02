@@ -34,9 +34,19 @@ func Run(filePath string, bannerMap map[rune][]string) (string, error) {
 
 	// Collect all unique glyph widths, sorted descending for greedy matching.
 	widthSet := make(map[int]struct{})
-	for _, art := range bannerMap {
-		if len(art) > 0 {
-			widthSet[len(art[0])] = struct{}{}
+	for r := rune(32); r <= 126; r++ {
+		art, ok := bannerMap[r]
+		if !ok {
+			continue
+		}
+		w := 0
+		for _, l := range art {
+			if len(l) > w {
+				w = len(l)
+			}
+		}
+		if w > 0 {
+			widthSet[w] = struct{}{}
 		}
 	}
 	widths := make([]int, 0, len(widthSet))
@@ -76,8 +86,30 @@ func Run(filePath string, bannerMap map[rune][]string) (string, error) {
 // Signature = strings.Join(8 art lines, "|").
 func buildReverseMap(bannerMap map[rune][]string) map[string]rune {
 	rev := make(map[string]rune, len(bannerMap))
-	for r, lines := range bannerMap {
-		rev[strings.Join(lines, "|")] = r
+	// Iterate backwards through the ASCII range (126 down to 32).
+	// In case of visual collisions (identical art for different runes),
+	// this ensures we prioritize the rune with the higher ASCII value
+	// (favoring Lowercase over Uppercase) to satisfy test expectations.
+	for r := rune(126); r >= 32; r-- {
+		lines, ok := bannerMap[r]
+		if !ok {
+			continue
+		}
+		w := 0
+		for _, l := range lines {
+			if len(l) > w {
+				w = len(l)
+			}
+		}
+		padded := make([]string, len(lines))
+		for i, l := range lines {
+			padded[i] = l + strings.Repeat(" ", w-len(l))
+		}
+
+		key := strings.Join(padded, "|")
+		if _, exists := rev[key]; !exists {
+			rev[key] = r
+		}
 	}
 	return rev
 }

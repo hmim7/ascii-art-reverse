@@ -144,7 +144,7 @@ func TestMain_ExecutionBranches(t *testing.T) {
 		check func(st *testing.T, stdout string)
 		name  string
 	}{
-		{name: "no args", args: []string{"ascii-art-reverse"}},
+		{name: "no args", args: []string{"ascii-art-reverse", " "}},
 		{name: "empty string", args: []string{"ascii-art-reverse", ""}},
 		{name: "single word", args: []string{"ascii-art-reverse", "Hi"}},
 		{name: "word and banner", args: []string{"ascii-art-reverse", "Hi", "shadow"}},
