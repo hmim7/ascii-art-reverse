@@ -1,7 +1,7 @@
 TASK ID: TASK 09
 TITLE: Output Writer (--output flag I/O)
 ROLE: I/O Engineering
-STATUS: TODO
+STATUS: DONE
 
 DESCRIPTION:
 Implement internal/output/output.go — a thin io.Writer abstraction that
@@ -39,11 +39,11 @@ ACCEPTANCE CRITERIA / TEST CASES:
 - [CLI]: GetWriter("") → returns os.Stdout, nil file, nil error
 
 DEFINITION OF DONE:
-- [ ] Core logic is fully implemented and executes without runtime errors.
-- [ ] Code is formatted according to project standards (gofmt).
-- [ ] Unit/Integration tests are written and passing.
-- [ ] Edge cases, invalid inputs, and error states are handled gracefully.
-- [ ] Documentation (inline comments, README, or API docs) has been updated.
-- [ ] Task execution verified in a local sandbox or staging environment.
-- [ ] Final results and learnings documented in README.md or a dedicated report file.
-- [ ] AI index log entries added to .ai/kchatzian.ai.txt.
+- [x] Core logic is fully implemented and executes without runtime errors.
+- [x] Code is formatted according to project standards (gofmt).
+- [x] Unit/Integration tests are written and passing.
+- [x] Edge cases, invalid inputs, and error states are handled gracefully.
+- [x] Documentation (inline comments, README, or API docs) has been updated.
+- [x] Task execution verified in a local sandbox or staging environment.
+- [x] Final results and learnings documented in README.md or a dedicated report file.
+- [x] AI index log entries added to .ai/kchatzian.ai.txt.

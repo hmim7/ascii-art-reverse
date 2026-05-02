@@ -36,11 +36,11 @@ ACCEPTANCE CRITERIA / TEST CASES:
 - [CLI]: File with 854 lines → invalid banner warning + standard fallback
 
 DEFINITION OF DONE:
-- [ ] Core logic is fully implemented and executes without runtime errors.
-- [ ] Code is formatted according to project standards (gofmt).
-- [ ] Unit/Integration tests are written and passing.
-- [ ] Edge cases, invalid inputs, and error states are handled gracefully.
-- [ ] Documentation (inline comments, README, or API docs) has been updated.
-- [ ] Task execution verified in a local sandbox or staging environment.
-- [ ] Final results and learnings documented in README.md or a dedicated report file.
-- [ ] AI index log entries added to .ai/edamaski.ai.txt.
+- [Χ] Core logic is fully implemented and executes without runtime errors.
+- [Χ] Code is formatted according to project standards (gofmt).
+- [Χ] Unit/Integration tests are written and passing.
+- [Χ] Edge cases, invalid inputs, and error states are handled gracefully.
+- [Χ] Documentation (inline comments, README, or API docs) has been updated.
+- [Χ] Task execution verified in a local sandbox or staging environment.
+- [Χ] Final results and learnings documented in README.md or a dedicated report file.
+- [Χ] AI index log entries added to .ai/edamaski.ai.txt.
