@@ -81,7 +81,7 @@ func EmitWarnings(args ParsedArgs) {
 		case "dup-align":
 			WarnAlignOverridden(f.Raw, args.AlignValue)
 		case "dup-reverse":
-			warnf("warning: reverse redirected to %q; previous flag %q ignored", args.ReverseValue, f.Raw)
+			WarnReverseOverridden(f.Raw, args.ReverseValue)
 		}
 	}
 
@@ -124,24 +124,23 @@ func WarnInvalidFlags(flags []FlagError) {
 }
 
 func WarnOutputRedirected(newVal, oldVal string) {
-	warnf("warning: output redirected to %q; previous flag %q ignored", newVal, oldVal)
+	warnf("warning: --output overridden: %s → %s", oldVal, newVal)
+}
+
+func WarnReverseOverridden(oldVal, newVal string) {
+	warnf("warning: --reverse overridden: %s → %s", oldVal, newVal)
 }
 
 func WarnAlignOverridden(oldVal, newVal string) {
-	warnf("warning: previous align flag %q overridden by %q", oldVal, newVal)
+	warnf("warning: --align overridden: %s → %s", oldVal, newVal)
 }
 
 func WarnDoubleDashHint(vals ...string) {
 	if len(vals) == 0 {
 		return
 	}
-	quoted := make([]string, len(vals))
-	for i, v := range vals {
-		quoted[i] = fmt.Sprintf("%q", v)
-	}
-
-	warnf("hint: to render %s as ascii-art, use the \"--\" delimiter before [STRING] (e.g., go run . -- %s)",
-		strings.Join(quoted, ", "), strings.Join(vals, " "))
+	warnf("hint: use \"--\" before [STRING] that look like flags (e.g., go run . -- %s)",
+		strings.Join(vals, " "))
 }
 
 func WarnBannerNotFound(name string) {
@@ -149,11 +148,11 @@ func WarnBannerNotFound(name string) {
 }
 
 func WarnBannerInvalid(name string) {
-	warnf("warning: banner %q invalid (expected 855 lines)", name)
+	warnf("warning: invalid banner %q", name)
 }
 
 func WarnReverseMismatch(fileName string) {
-	warnf("warning: the provided banner does not match the art in %q; please provide the correct [BANNER] argument", fileName)
+	warnf("warning: banner mismatch for %q,\nre-run with the corresponding [BANNER]", fileName)
 }
 
 func WarnFlagsAfterString(flags ...string) {
@@ -164,14 +163,8 @@ func WarnFlagsAfterString(flags ...string) {
 	for i, f := range flags {
 		quoted[i] = fmt.Sprintf("%q", f)
 	}
-	noun := "option"
-	verb := "looks like a"
-	if len(flags) > 1 {
-		noun = "options"
-		verb = "look like"
-	}
-	warnf("hint: %s %s flag %s; when using \"--\", all flag options must be placed before the delimiter (e.g., go run . %s -- [STRING])",
-		strings.Join(quoted, ", "), verb, noun, strings.Join(flags, " "))
+	warnf("hint: %s must come before \"--\" (e.g., go run . %s -- [STRING])",
+		strings.Join(quoted, ", "), strings.Join(flags, " "))
 }
 
 // ValidateOrFatal exits with the appropriate usage message if any malformed

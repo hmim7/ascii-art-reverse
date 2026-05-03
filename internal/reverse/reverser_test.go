@@ -25,16 +25,6 @@ func loadBanner(t *testing.T, name string) map[rune][]string {
 
 func TestRun(t *testing.T) {
 	t.Parallel()
-	// Cache for loaded banners to avoid redundant I/O
-	bannerCache := make(map[string]map[rune][]string)
-	getBanner := func(name string) map[rune][]string {
-		if m, ok := bannerCache[name]; ok {
-			return m
-		}
-		m := loadBanner(t, name)
-		bannerCache[name] = m
-		return m
-	}
 
 	tests := []struct {
 		name       string
@@ -64,10 +54,19 @@ func TestRun(t *testing.T) {
 		{name: "FileNotFound", file: "testdata/nonexistent.txt", bannerName: "standard", wantErr: true},
 	}
 
+	// Pre-load all banners sequentially before spawning parallel subtests
+	// to avoid concurrent writes to a shared map.
+	bannerCache := make(map[string]map[rune][]string)
+	for _, tt := range tests {
+		if _, ok := bannerCache[tt.bannerName]; !ok {
+			bannerCache[tt.bannerName] = loadBanner(t, tt.bannerName)
+		}
+	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(st *testing.T) {
 			st.Parallel()
-			bm := getBanner(tt.bannerName)
+			bm := bannerCache[tt.bannerName]
 			got, err := reverse.Run(tt.file, bm)
 			if (err != nil) != tt.wantErr {
 				st.Fatalf("Run() error = %v, wantErr %v", err, tt.wantErr)

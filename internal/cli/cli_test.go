@@ -164,9 +164,9 @@ func TestEmitWarnings(t *testing.T) {
 				UnknownFlags: []cli.FlagError{{Category: "unknown", Raw: "---"}},
 			},
 			wantSubstrings: []string{
-				`warning: output redirected to "new.txt"; previous flag "old.txt" ignored`,
+				`warning: --output overridden: old.txt → new.txt`,
 				`warning: invalid color flag "invalid"`,
-				`hint: to render "---" as ascii-art, use the "--" delimiter before [STRING] (e.g., go run . -- ---)`,
+				`hint: use "--" before [STRING] that look like flags (e.g., go run . -- ---)`,
 			},
 		},
 		{
@@ -206,7 +206,7 @@ func TestEmitWarnings(t *testing.T) {
 				AlignValue: "right",
 				Malformed:  []cli.FlagError{{Category: "dup-align", Raw: "left"}},
 			},
-			wantSubstrings: []string{`previous align flag "left" overridden by "right"`},
+			wantSubstrings: []string{`--align overridden: left → right`},
 		},
 	}
 
@@ -399,7 +399,7 @@ func TestWarnFunctions(t *testing.T) {
 		{
 			name:    "WarnAlignOverridden",
 			fn:      func() { cli.WarnAlignOverridden("left", "right") },
-			wantSub: `previous align flag "left" overridden by "right"`,
+			wantSub: `--align overridden: left → right`,
 		},
 		{
 			name:    "WarnBannerNotFound",
@@ -409,7 +409,7 @@ func TestWarnFunctions(t *testing.T) {
 		{
 			name:    "WarnBannerInvalid",
 			fn:      func() { cli.WarnBannerInvalid("broken") },
-			wantSub: `banner "broken" invalid`,
+			wantSub: `invalid banner "broken"`,
 		},
 		{
 			name:    "WarnFlagsAfterString",

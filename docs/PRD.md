@@ -49,6 +49,11 @@ The program must support the following combinations. If multiple options are pre
 | Reverse with Banner | `go run . --reverse=<fileName> [BANNER]` |
 
 - **Note on Compatibility:** The `--color=<color>` flag remains fully functional. When used alongside `--output`, the ANSI escape codes for color must be written directly into the text file (allowing users to view color when using `cat` on the resulting file).
+- **Note on Reverse & Alignment:** The `--reverse` flag preserves alignment offsets found in the art file. Leading spaces introduced by `--align=center` or `--align=right` are decoded as space glyphs and included in the output (e.g., reversing a right-aligned art file returns the original text preceded by the appropriate leading spaces). When the alignment padding is not evenly divisible by the banner's space glyph width, the algorithm prepends `floor(padding / spaceWidth)` space characters as a best-effort approximation and skips the remaining sub-glyph remainder. ANSI color codes embedded in the file are stripped before matching and do not affect reconstruction.
+- **Note on Reverse Preprocessing:** Before matching, the algorithm normalizes `\r\n` line endings to `\n` and strips trailing empty lines produced by the final newline. This ensures consistent behavior across files generated on Windows and Unix.
+- **Note on Reverse Collision Resolution:** When two different ASCII characters share identical glyph art in a banner, the algorithm favors the character with the higher ASCII value (e.g., lowercase over uppercase). This is achieved by iterating the reverse-map build from rune 126 down to 32 and keeping only the first (highest) entry per signature.
+- **Note on Reverse Greedy Matching:** Glyph widths are collected into a deduplicated set and sorted in descending order. The scanner always tries the widest candidate first (longest-match-first greedy strategy), guaranteeing that wider glyphs are never shadowed by a narrower sub-match.
+- **Note on Reverse Multi-line Input:** A blank line in the art file is treated as a segment separator, mapping directly to a `\n` in the original input. This allows faithful reconstruction of strings that contained explicit newlines.
 
 ---
 
@@ -514,6 +519,21 @@ To maintain project focus and strictly follow the audit guidelines, the followin
 - [ ] **Warning Case 3:** `go run . --color blue --align=center "hello" standard` warns about invalid color and center-aligns.
 - [ ] **Warning Case 4:** `go run . --output=first.txt --output=second.txt "hello" standard` warns about duplicate output and writes to the second file.
 - [ ] **Warning Case 5:** `go run . "hello" standard --align=right` correctly aligns with flag after arguments.
+
+### 6.12 Reverse Acceptance Criteria
+- [ ] **Reverse Case 1:** `go run . --reverse=<file>` on left-aligned art returns the original text with no leading spaces.
+- [ ] **Reverse Case 2:** `go run . --reverse=<file>` on right-aligned art returns the original text prefixed with leading spaces representing the alignment offset, for all supported banner fonts.
+- [ ] **Reverse Case 3:** `go run . --reverse=<file>` on center-aligned art returns the original text prefixed with leading spaces representing the half-width offset, for all supported banner fonts.
+- [ ] **Reverse Case 4:** `go run . --reverse=<file>` on colored art (ANSI escape codes present) strips color codes before matching and returns the plain text correctly.
+- [ ] **Reverse Case 5:** `go run . --reverse=<file>` on colored + right-aligned art strips color codes and preserves the alignment offset (leading spaces) in the output.
+- [ ] **Reverse Case 6:** `go run . --reverse=<file>` on multi-line art (`\n` in original input) returns each line separated by `\n` in the output.
+- [ ] **Reverse Case 7:** `go run . --reverse=<file> [BANNER]` specifying the correct banner reconstructs the text. Specifying the wrong banner triggers a mismatch warning and exits 1.
+- [ ] **Reverse Case 8:** All six bundled banner fonts (standard, shadow, thinkertoy, doom, dancing, greek) produce consistent alignment-preserving output when reversed from right-aligned art files.
+- [ ] **Reverse Case 9:** Files with Windows line endings (`\r\n`) are normalized before matching and return the same result as files with Unix line endings (`\n`).
+- [ ] **Reverse Case 10:** When two ASCII characters share identical glyph art, reconstruction favors the higher ASCII value (lowercase letter over its uppercase equivalent).
+- [ ] **Reverse Case 11:** Greedy width-first matching correctly reconstructs strings containing characters of mixed glyph widths in the same banner.
+- [ ] **Reverse Case 12:** A file containing only a space glyph (all-blank 8-line block) is decoded as a single space character, not an empty string.
+
 ---
 
 ## 7. Implementation Approach (High Level)
@@ -666,6 +686,37 @@ This section outlines the phased development approach to integrate the Output re
 - Implement left, right, center, and justify alignment while preserving 8-line height.
 - Ensure `justify` distributes space between words and gracefully handles single-word input.
 - Add alignment-specific tests and validate `docs/justify_cases.md`.
+
+### Milestone 10: Reverse — Full Algorithm Implementation
+**Preprocessing:**
+- Normalize `\r\n` line endings to `\n` before any processing (Windows compatibility).
+- Strip trailing empty lines created by the file's final newline.
+- Apply `render.StripANSI` to every line so ANSI color codes do not affect glyph matching.
+
+**Reverse map construction (`buildReverseMap`):**
+- Invert `bannerMap` into a `signature → rune` lookup where signature = `strings.Join(8 padded art lines, "|")`.
+- Pad each glyph's lines to the glyph's maximum width before hashing, so short lines don't create false mismatches.
+- Iterate rune range 126 → 32 (descending) so that on a signature collision, the higher ASCII value (lowercase letter) takes priority.
+
+**Greedy width-first scanner (`matchSegmentFrom`):**
+- Collect all unique glyph widths from the banner map into a deduplicated set, sort descending.
+- Scan left-to-right: at each column, try all widths largest-first; commit to the first match found.
+- Pad short source lines to the candidate width with spaces so every glyph candidate is compared at full width.
+- Exit the scan loop when the column cursor reaches or exceeds the longest source line.
+
+**Alignment preservation (`matchSegment`):**
+- Implement `commonIndent` to detect leading-space prefix shared by all non-empty lines in an 8-line block.
+- Guard the all-blank block case (`indent >= maxCol`): match from `col=0` to decode a space glyph, preventing silent empty output.
+- Try `col=0` first: when alignment padding width is divisible by `spaceW`, leading space columns decode as space glyphs, preserving the exact alignment offset in the output.
+- Fallback when `col=0` fails: prepend `floor(indent / spaceW)` spaces and start `matchSegmentFrom` from `indent` — consistent best-effort result across all banner fonts where padding is not evenly divisible.
+
+**Multi-line support:**
+- A truly empty line in the art file (blank segment separator) passes through as an empty string, mapping back to a `\n` in the reconstructed text.
+
+**Validation:**
+- Validate behaviour across all six bundled banner fonts (standard, shadow, thinkertoy, doom, dancing, greek) with left, center, and right alignment.
+- Add `ColoredArt` round-trip test confirming ANSI stripping does not discard alignment offset.
+- Add CRLF normalization test confirming Windows-generated files produce identical output to Unix-generated files.
 
 ## 9. Risks / Open Questions
 The following risks and open questions reflect the complexity of integrating **FS, Output** redirection, and **Multi-Color** features into a single Go CLI tool.

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"strings"
+
 	"ascii-art-reverse/internal/cli"
 )
 

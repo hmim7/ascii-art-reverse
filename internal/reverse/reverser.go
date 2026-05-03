@@ -34,6 +34,7 @@ func Run(filePath string, bannerMap map[rune][]string) (string, error) {
 
 	// Collect all unique glyph widths, sorted descending for greedy matching.
 	widthSet := make(map[int]struct{})
+	spaceW := 0
 	for r := rune(32); r <= 126; r++ {
 		art, ok := bannerMap[r]
 		if !ok {
@@ -47,6 +48,9 @@ func Run(filePath string, bannerMap map[rune][]string) (string, error) {
 		}
 		if w > 0 {
 			widthSet[w] = struct{}{}
+			if r == 32 {
+				spaceW = w
+			}
 		}
 	}
 	widths := make([]int, 0, len(widthSet))
@@ -71,7 +75,7 @@ func Run(filePath string, bannerMap map[rune][]string) (string, error) {
 		}
 		block := make([]string, 8)
 		copy(block, lines[i:end])
-		seg, err := matchSegment(block, rev, widths)
+		seg, err := matchSegment(block, rev, widths, spaceW)
 		if err != nil {
 			return "", err
 		}
@@ -114,9 +118,67 @@ func buildReverseMap(bannerMap map[rune][]string) map[string]rune {
 	return rev
 }
 
+// commonIndent returns the number of leading spaces shared by all non-empty lines.
+func commonIndent(lines []string) int {
+	indent := -1
+	for _, l := range lines {
+		if l == "" {
+			continue
+		}
+		n := len(l) - len(strings.TrimLeft(l, " "))
+		if indent < 0 || n < indent {
+			indent = n
+		}
+	}
+	if indent < 0 {
+		return 0
+	}
+	return indent
+}
+
 // matchSegment greedy-scans one 8-line block left-to-right.
-// At each column offset it tries all known glyph widths; first match consumed.
-func matchSegment(lines []string, rev map[string]rune, widths []int) (string, error) {
+// It tries col=0 first so that alignment padding (--align=center/right) is
+// decoded as space glyphs and preserved in the output. When that fails
+// (padding is not evenly divisible by the space glyph width), it falls back
+// to skipping all padding and prepending floor(indent/spaceW) spaces as a
+// best-effort approximation. A final no-prefix fallback handles fonts whose
+// glyph designs happen to start with whitespace (e.g. dancing).
+// When the whole block is blank (a space glyph), we skip straight to col=0.
+func matchSegment(lines []string, rev map[string]rune, widths []int, spaceW int) (string, error) {
+	indent := commonIndent(lines)
+	maxCol := 0
+	for _, l := range lines {
+		if len(l) > maxCol {
+			maxCol = len(l)
+		}
+	}
+
+	// All-blank block (space glyph): match from col=0.
+	if indent >= maxCol {
+		return matchSegmentFrom(lines, 0, rev, widths)
+	}
+
+	// Try col=0: decodes alignment padding as space glyphs, preserving alignment.
+	if result, err := matchSegmentFrom(lines, 0, rev, widths); err == nil {
+		return result, nil
+	}
+
+	// col=0 failed (padding not divisible by space glyph width).
+	// Skip all padding; prepend as many complete space glyphs as fit.
+	if indent > 0 {
+		prefix := ""
+		if spaceW > 0 {
+			prefix = strings.Repeat(" ", indent/spaceW)
+		}
+		if inner, err := matchSegmentFrom(lines, indent, rev, widths); err == nil {
+			return prefix + inner, nil
+		}
+	}
+
+	return "", fmt.Errorf("unrecognized glyph at column 0")
+}
+
+func matchSegmentFrom(lines []string, startCol int, rev map[string]rune, widths []int) (string, error) {
 	if len(lines) == 0 {
 		return "", nil
 	}
@@ -129,10 +191,10 @@ func matchSegment(lines []string, rev map[string]rune, widths []int) (string, er
 	}
 
 	var result strings.Builder
-	col := 0
+	col := startCol
 	// Scan until we hit the visible end of the art.
 	// Special case: if maxCol is 0 (all 8 lines were trimmed), try to match at least one glyph.
-	for col < maxCol || (col == 0 && maxCol == 0) {
+	for col < maxCol || (col == startCol && maxCol == 0) {
 		matched := false
 		for _, w := range widths {
 			cols := make([]string, len(lines))
@@ -155,7 +217,7 @@ func matchSegment(lines []string, rev map[string]rune, widths []int) (string, er
 			}
 		}
 		if !matched {
-			if col >= maxCol && col > 0 {
+			if col >= maxCol && col > startCol {
 				break // No match found beyond the visible art; we are done.
 			}
 			return "", fmt.Errorf("unrecognized glyph at column %d", col)
