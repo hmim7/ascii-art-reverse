@@ -40,6 +40,106 @@ program must handle all of them gracefully and produce correct output.
 | X28 | Reverse | Combined with banner arg | `--reverse=file.txt shadow` | shadow banner used for reverse lookup |
 | X29 | CLI Core | Double-dash as literal string | `"--"` | Rendered as two hyphens |
 | X30 | CLI Core | Double-dash delimiter | `-- "--"` | Rendered as two hyphens (first `--` is ignored) |
+| X31 | CLI Core | Empty string vs missing string | `""` vs no args | Empty string exits 0 with no output; missing string is usage |
+| X32 | CLI Core | Literal `\t` after escaped backslash | `"A\\tB"` | Literal `\` glyph, then 3-space tab expansion before `B` |
+| X33 | CLI Core | Trailing single backslash | `"abc\"` | Final backslash rendered literally; no dropped byte |
+| X34 | CLI Core | Escaped unknown sequence | `"A\qB"` | Backslash and `q` rendered literally |
+| X35 | CLI Core | Consecutive escaped newlines | `"A\n\n\nB"` | Three newline separators preserved exactly |
+| X36 | CLI Core | Space-only single segment | `"     "` | One 8-line block of space glyphs; not treated as empty input |
+| X37 | CLI Core | Mixed real newline and escaped newline | Input contains both actual LF and `\n` | Both split into equivalent segments |
+| X38 | CLI Core | DEL and control bytes embedded | Input contains `\x00`, `\x1f`, `\x7f` | Unsupported control bytes filtered without panic |
+| X39 | CLI Core | Non-ASCII mixed with ASCII | `"Héllø"` | Render only printable ASCII survivors (`Hll`) unless gopher condition applies |
+| X40 | CLI Core | Only non-ASCII input | `"こんにちは"` | Triggers gopher only when parsed segments are blank |
+| X41 | CLI Core | Literal text beginning with flag prefix | `"--color=red"` | Requires delimiter or must be handled consistently as literal/flag policy |
+| X42 | CLI Core | Text after double-dash that looks like flags | `-- "--output=x.txt"` | Rendered as literal text, not parsed as output |
+| X43 | CLI Core | Banner after delimiter | `-- "hello" shadow` | `shadow` is treated according to delimiter positional rules, not as a flag |
+| X44 | CLI Core | Too many positionals with late flag | `"a" "b" "c" --align=right` | Usage, with no accidental banner load |
+| X45 | CLI Core | Windows-style path as text | `"C:\Temp\a.txt"` | Rendered literally, including `:` and backslashes |
+| X46 | CLI Core | Shell-sensitive punctuation soup | `"!@#$%^&*()_+-=[]{}|;:',.<>/?"` | Every printable ASCII glyph mapped correctly |
+| X47 | CLI Core | Input ending in `\n\n` | `"Hello\n\n"` | 8-line block followed by exactly two blank-line effects |
+| X48 | CLI Core | Input beginning with `\n\n` | `"\n\nHello"` | Exactly two leading blank-line effects before art |
+| X49 | Color | Empty substring rule by omission | `--color=red "hello"` | Whole string colored red |
+| X50 | Color | Substring equals whole input | `--color=red "hello" "hello"` | Same visual result as omitted substring |
+| X51 | Color | Target not present | `--color=red "zzz" "hello"` | No ANSI emitted for missing target |
+| X52 | Color | Target appears multiple times | `--color=cyan "ana" "banana"` | All matching ranges colored, including overlapping rules if supported |
+| X53 | Color | Overlapping repeated target | `--color=red "aa" "aaaa"` | Positions 0-3 colored because matches overlap |
+| X54 | Color | Case-sensitive color target | `--color=red "he" "Hello"` | No color on `He`; matching is case-sensitive |
+| X55 | Color | Color target containing space | `--color=blue "o w" "hello world"` | Coloring spans the space glyph between words |
+| X56 | Color | Color target containing escaped newline | `--color=red "A\nB" "A\nB"` | Rule behavior across segment boundary is explicit and stable |
+| X57 | Color | Color target is backslash | `--color=yellow "\" "a\b"` | Backslash glyph alone can be colored |
+| X58 | Color | Color target is punctuation | `--color=green "$%" "a$%b"` | Symbol glyphs colored without shell parsing confusion |
+| X59 | Color | Hex color lowercase | `--color=#ff5733 "hello"` | Parsed same as uppercase hex |
+| X60 | Color | Hex color invalid length | `--color=#fff "hello"` | Warning, no color; no panic |
+| X61 | Color | RGB with spaces | `--color="rgb(255, 0, 0)" "hello"` | Spaces inside notation ignored/handled correctly |
+| X62 | Color | RGB out of range | `--color=rgb(256,0,0) "hello"` | Warning, no color |
+| X63 | Color | HSL with wraparound hue | `--color=hsl(360,100%,50%) "hello"` | Valid truecolor equivalent to red or documented behavior |
+| X64 | Color | Multiple invalid colors mixed with valid | `--color=bad "he" --color=red "llo" "hello"` | Invalid skipped; valid still applied |
+| X65 | Color | Later invalid rule over earlier valid | `--color=red "ll" --color=bad "ll" "hello"` | Earlier valid color remains; invalid does not erase |
+| X66 | Color | Duplicate whole-string colors | `--color=red --color=blue "hello"` | Whole string blue (last valid wins) |
+| X67 | Color | ANSI width ignored by align | `--color=red --align=right "Hi"` | Padding based on visible art, not ANSI byte length |
+| X68 | Color | ANSI reset per glyph run | `--color=red "e" "hello"` | Reset codes do not leak into uncolored glyphs |
+| X69 | Color | Color with output and reverse | Generate colored file, then reverse it | Reverse strips ANSI before matching |
+| X70 | FS | Banner name with directory traversal | `"hello" "../shadow"` | Sanitized basename policy applied; no outside file read |
+| X71 | FS | Banner name absolute path | `"hello" "C:\Temp\shadow.txt"` | Treated as sanitized banner name, not absolute path |
+| X72 | FS | Banner name with mixed case extension | `"hello" "Shadow.TXT"` | Extension stripped case-insensitively |
+| X73 | FS | Banner name with trailing spaces | `"hello" "shadow "` | Either sanitized/fallback behavior is consistent and warned |
+| X74 | FS | Banner name with leading dot | `"hello" ".shadow"` | Dot removed or invalid fallback; no hidden-file lookup |
+| X75 | FS | Banner file with blank first separator | Custom banner | Leading-separator detection still maps space correctly |
+| X76 | FS | Banner file with trailing final newline | Custom 855-line banner + final LF | Loader line count remains correct |
+| X77 | FS | Banner file CRLF | Banner stored with Windows line endings | Loader normalizes CRLF before 855-line validation |
+| X78 | FS | Missing standard fallback file | Rename/remove standard in controlled test | Fatal error, not nil map panic |
+| X79 | FS | Corrupted selected banner | Selected banner has 854/856 lines | Warning + safe standard fallback |
+| X80 | Output | Output path with nested missing directory | `--output=missing/out.txt "hi"` | Clear error; no partial render to stdout |
+| X81 | Output | Output filename uppercase extension | `--output=OUT.TXT "hi"` | Accepted because `.txt` check is case-insensitive |
+| X82 | Output | Output filename without extension | `--output=out "hi"` | Usage output path validation |
+| X83 | Output | Output path containing spaces | `--output="my art.txt" "hi"` | File created/truncated correctly |
+| X84 | Output | Output path same as reverse input | `--output=rt.txt ...` then reverse | No stale bytes; round-trip stable |
+| X85 | Output | Duplicate output flags | `--output=a.txt --output=b.txt "hi"` | Last output wins with warning; only final destination used |
+| X86 | Output | Output combined with empty string | `--output=empty.txt ""` | File created empty or documented no-output behavior |
+| X87 | Output | Output combined with newline-only input | `--output=n.txt "\n"` | File contains exactly one newline |
+| X88 | Output | Output combined with ANSI color | `--output=c.txt --color=red "hi"` | ANSI bytes persisted raw |
+| X89 | Output | Output overwrite shorter after longer | First long art, then short art same file | No trailing bytes from old content |
+| X90 | Output | Output to read-only location | `--output=<protected>/x.txt "hi"` | Clear OS error; no panic |
+| X91 | Alignment | Right align when content wider than width | `COLUMNS=10 --align=right "hello"` | No negative padding, no truncation |
+| X92 | Alignment | Center align when content wider than width | `COLUMNS=10 --align=center "hello"` | Left unchanged; no negative padding |
+| X93 | Alignment | Right align space-only text | `--align=right "   "` | Space glyph block padded consistently or documented |
+| X94 | Alignment | Center align empty segment in multiline | `--align=center "A\n\nB"` | Blank separator not padded into visible spaces |
+| X95 | Alignment | Justify with leading/trailing spaces | `--align=justify "  A B  "` | Word gaps justified; edge spaces handled intentionally |
+| X96 | Alignment | Justify with many spaces between words | `--align=justify "A     B"` | Existing multiple spaces do not create fake empty words |
+| X97 | Alignment | Justify with two very wide words | `--align=justify "MMMMMMMM WWWWWWWW"` | Minimum gap preserved; no overflow panic |
+| X98 | Alignment | Center with ANSI-colored art | `--align=center --color=red "hi"` | ANSI ignored for padding calculation |
+| X99 | Alignment | Right align multiline input | `--align=right "A\nBB"` | Each 8-line segment aligned independently |
+| X100 | Alignment | Invalid COLUMNS env value | `COLUMNS=abc --align=right "Hi"` | Falls back to detected/default width |
+| X101 | Reverse | Empty file | `--reverse=empty.txt` | Empty output or clear reverse error; no panic |
+| X102 | Reverse | File with only one newline | `--reverse=blank.txt` | Decodes as blank input consistently |
+| X103 | Reverse | File with 7 art lines | Truncated art block | Clear unrecognized/incomplete glyph error |
+| X104 | Reverse | File with 9 art lines no separator | Extra line after one glyph block | Extra row handled as new block or clear error |
+| X105 | Reverse | Art with trailing spaces stripped | File editor trims line endings | Reverse still works where possible or gives clear mismatch |
+| X106 | Reverse | Art with leading alignment padding | Reverse right-aligned output file | Padding decoded or approximated consistently |
+| X107 | Reverse | Center padding not divisible by space width | Centered art reverse | Best-effort prefix spaces; no unrecognized padding crash |
+| X108 | Reverse | Reverse colored right-aligned file | Color + align + output, then reverse | ANSI stripped and alignment handled together |
+| X109 | Reverse | Reverse file with CRLF | Art file saved with Windows line endings | Normalized and decoded correctly |
+| X110 | Reverse | Reverse with wrong banner | `--reverse=shadow.txt standard` | Warns banner mismatch / usage, not garbage text |
+| X111 | Reverse | Reverse doom banner punctuation | Doom-generated `!@#` art | Non-standard glyph widths decoded correctly |
+| X112 | Reverse | Reverse space-only art | Output generated from `"   "` | Reconstructs exact count of spaces |
+| X113 | Reverse | Reverse text containing literal backslash | Output generated from `"a\b"` | Backslash glyph maps back to `\` |
+| X114 | Reverse | Reverse multi-line with blank middle | Output generated from `"A\n\nB"` | Reconstructs `A\n\nB` exactly |
+| X115 | Reverse | Reverse file path with spaces | `--reverse="my art.txt"` | Reads quoted filename correctly |
+| X116 | Reverse | Reverse duplicate flag | `--reverse=a.txt --reverse=b.txt` | Last reverse wins with warning or documented policy |
+| X117 | Stdin | Stdin with explicit banner | `echo Hi | go run . --stdin shadow` | Uses shadow banner, not standard |
+| X118 | Stdin | Stdin with trailing newline | `echo Hello | go run . --stdin` | Shell newline trimmed according to stdin policy |
+| X119 | Stdin | Stdin containing intentional blank line | Pipe `A\n\nB\n` | Preserves internal blank line while trimming only final newline |
+| X120 | Stdin | Stdin plus positional text conflict | `echo A | go run . --stdin B` | `B` is banner or conflict by documented policy, never silently input |
+| X121 | Stdin | Stdin plus color substring | `echo hello | go run . --stdin --color=red "ell"` | Colors stdin text using provided target |
+| X122 | Stdin | Stdin plus output | `echo hi | go run . --stdin --output=s.txt` | Writes stdin-rendered art to file |
+| X123 | Stdin | Stdin plus reverse conflict | `echo hi | go run . --stdin --reverse=x.txt` | Usage; reverse and render modes do not mix |
+| X124 | Cross-feature | Color + justify + output | `--output=o.txt --color=red "A" --align=justify "A B"` | ANSI does not break justify width |
+| X125 | Cross-feature | Flags after string before banner | `"hello" --color=red standard` | Parser resolves text/banner/color predictably |
+| X126 | Cross-feature | Double-dash before flag-looking text with color | `--color=red -- "--color=red"` | Protected text rendered and colored as whole string |
+| X127 | Cross-feature | Unknown flag after delimiter | `-- "--bad"` | Rendered literally, no usage |
+| X128 | Cross-feature | Multiple warnings order | Duplicate output + invalid color + invalid banner | Warnings are deterministic and readable |
+| X129 | Cross-feature | Gopher with output | `--output=g.txt "非ASCII"` | Gopher goes to selected writer or documented stdout policy |
+| X130 | Cross-feature | Gopher with color | `--color=red "非ASCII"` | Gopher trigger not broken by color rules |
 
 ---
 
@@ -266,3 +366,743 @@ $
 **Input:** `go run . --reverse=file.txt shadow`
 **Expected:** Shadow banner used for the reverse lookup; standard is not assumed.
 **Why tricky:** `main.go` must resolve the banner name from `Positional[0]` (if present alongside `--reverse`) and pass it to `reverse.Run`.
+
+---
+
+## Category 7: CLI Core - Extended
+
+### X29 - Double-Dash as Literal String
+**Input:** `go run . "--"`
+**Expected:** Two hyphen glyphs rendered.
+**Why tricky:** A bare `--` can be confused with the POSIX delimiter. The app must decide whether `"--"` as the only string is literal text or a fatal unknown flag, then keep docs/tests consistent.
+
+---
+
+### X30 - Double-Dash Delimiter
+**Input:** `go run . -- "--"`
+**Expected:** The first `--` is consumed as delimiter; the second `--` is rendered as text.
+**Why tricky:** Once delimiter mode starts, later flag-looking tokens must never be parsed as options.
+
+---
+
+### X31 - Empty String vs Missing String
+**Input:** `go run . ""` and `go run .`
+**Expected:** `""` exits 0 with no output; no args shows usage.
+**Why tricky:** Both can look like "no text" internally, but CLI intent is different.
+
+---
+
+### X32 - Literal `\t` After Escaped Backslash
+**Input:** `go run . "A\\tB" standard`
+**Expected:** `A`, literal backslash glyph, 3 expanded spaces, `B`.
+**Why tricky:** Escape preprocessing must be left-to-right; `\\t` is not the same as `\t`.
+
+---
+
+### X33 - Trailing Single Backslash
+**Input:** `go run . "abc\" standard`
+**Expected:** Final backslash rendered literally.
+**Why tricky:** Escape parsers often drop a final dangling escape byte.
+
+---
+
+### X34 - Unknown Escape Sequence
+**Input:** `go run . "A\qB" standard`
+**Expected:** Backslash and `q` rendered literally.
+**Why tricky:** Only supported escapes should be transformed; unknown escapes must not silently delete `\`.
+
+---
+
+### X35 - Consecutive Escaped Newlines
+**Input:** `go run . "A\n\n\nB" standard | cat -e`
+**Expected:** `A` block, two blank separators between, then `B` block.
+**Why tricky:** Multiple empty segments must not collapse into one.
+
+---
+
+### X36 - Space-Only Single Segment
+**Input:** `go run . "     " standard | cat -e`
+**Expected:** One 8-line block made only of spaces.
+**Why tricky:** Space-only text is still renderable text, not empty input.
+
+---
+
+### X37 - Real Newline Mixed With Escaped Newline
+**Input:** Argument containing actual LF plus literal `\n`.
+**Expected:** Both produce the same segment splitting.
+**Why tricky:** Shells and stdin can deliver real LF; typed CLI examples often use escaped LF.
+
+---
+
+### X38 - Embedded Control Bytes
+**Input:** Text containing `\x00`, `\x1f`, and `\x7f`.
+**Expected:** Unsupported control bytes are filtered; printable ASCII around them still renders.
+**Why tricky:** Filtering must happen after newline/tab normalization but before banner lookup.
+
+---
+
+### X39 - Non-ASCII Mixed With ASCII
+**Input:** `go run . "Héllø" standard`
+**Expected:** Only printable ASCII survivors render (`Hll`), unless gopher rules intentionally override.
+**Why tricky:** Non-ASCII should not create empty glyphs in the middle of valid ASCII text.
+
+---
+
+### X40 - Only Non-ASCII Input
+**Input:** `go run . "こんにちは"`
+**Expected:** Gopher art when the non-ASCII trigger conditions are met.
+**Why tricky:** The gopher path depends on original text and parsed segments, not only filtered output.
+
+---
+
+### X41 - Literal Text Beginning With Flag Prefix
+**Input:** `go run . "--color=red"`
+**Expected:** Either rendered only with delimiter or rejected consistently with a hint.
+**Why tricky:** User text and flags share the same token space.
+
+---
+
+### X42 - Flag-Looking Text After Delimiter
+**Input:** `go run . -- "--output=x.txt"`
+**Expected:** `--output=x.txt` rendered literally.
+**Why tricky:** Delimiter mode must protect all later tokens from flag parsing.
+
+---
+
+### X43 - Banner After Delimiter
+**Input:** `go run . -- "hello" shadow`
+**Expected:** Positional handling is deterministic: `"hello"` text and `shadow` banner, or documented usage.
+**Why tricky:** Delimiter should stop flag parsing without destroying positional meaning.
+
+---
+
+### X44 - Too Many Positionals With Late Flag
+**Input:** `go run . "a" "b" "c" --align=right`
+**Expected:** Usage; no accidental banner load.
+**Why tricky:** Position-independent flags must not mask extra positional arguments.
+
+---
+
+### X45 - Windows Path as Text
+**Input:** `go run . "C:\Temp\a.txt" standard`
+**Expected:** Render all printable characters literally.
+**Why tricky:** Backslashes, colon, and dot are valid glyphs and should not imply file mode.
+
+---
+
+### X46 - Shell-Sensitive Punctuation Soup
+**Input:** `go run . "!@#$%^&*()_+-=[]{}|;:',.<>/?" standard`
+**Expected:** Every printable ASCII symbol maps to the correct glyph.
+**Why tricky:** This catches banner index math and shell quoting assumptions in one shot.
+
+---
+
+### X47 - Input Ending in Two Newlines
+**Input:** `go run . "Hello\n\n" standard | cat -e`
+**Expected:** `Hello` block followed by two newline effects.
+**Why tricky:** Trailing empty segments are easy to trim away accidentally.
+
+---
+
+### X48 - Input Beginning With Two Newlines
+**Input:** `go run . "\n\nHello" standard | cat -e`
+**Expected:** Two leading blank-line effects before the art.
+**Why tricky:** Leading empty segments must be preserved just like middle empty segments.
+
+---
+
+## Category 8: Color - Extended
+
+### X49 - Empty Substring Rule by Omission
+**Input:** `go run . --color=red "hello"`
+**Expected:** Whole string colored red.
+**Why tricky:** Missing substring means "color all", not "invalid color command".
+
+---
+
+### X50 - Substring Equals Whole Input
+**Input:** `go run . --color=red "hello" "hello"`
+**Expected:** Same visual output as X49.
+**Why tricky:** The smart substring parser must consume the first `hello` as target, not confuse it with the rendered string.
+
+---
+
+### X51 - Target Not Present
+**Input:** `go run . --color=red "zzz" "hello"`
+**Expected:** No ANSI codes in stdout.
+**Why tricky:** A non-matching valid rule should be harmless.
+
+---
+
+### X52 - Target Appears Multiple Times
+**Input:** `go run . --color=cyan "ana" "banana"`
+**Expected:** Every `ana` match colored according to matching policy.
+**Why tricky:** Repeated substring search must not stop after the first hit.
+
+---
+
+### X53 - Overlapping Repeated Target
+**Input:** `go run . --color=red "aa" "aaaa"`
+**Expected:** All four `a` positions colored if overlapping matches are supported.
+**Why tricky:** Advancing by target length instead of one rune skips overlapping matches.
+
+---
+
+### X54 - Case-Sensitive Color Target
+**Input:** `go run . --color=red "he" "Hello"`
+**Expected:** `He` stays default.
+**Why tricky:** Color matching should not lowercase input unless explicitly specified.
+
+---
+
+### X55 - Color Target Containing Space
+**Input:** `go run . --color=blue "o w" "hello world"`
+**Expected:** `o`, the space glyph, and `w` colored.
+**Why tricky:** Space glyphs are empty-looking but still occupy positions in the source string.
+
+---
+
+### X56 - Color Target Containing Escaped Newline
+**Input:** `go run . --color=red "A\nB" "A\nB"`
+**Expected:** Behavior across segment boundaries is explicit and stable.
+**Why tricky:** Per-rune color masks built from raw input can drift after segment splitting.
+
+---
+
+### X57 - Backslash as Color Target
+**Input:** `go run . --color=yellow "\" "a\b"`
+**Expected:** Only the backslash glyph is colored.
+**Why tricky:** Backslash is both a printable glyph and an escape introducer.
+
+---
+
+### X58 - Punctuation Color Target
+**Input:** `go run . --color=green "$%" "a$%b"`
+**Expected:** `$` and `%` glyphs are green.
+**Why tricky:** Symbol substrings stress both shell quoting and per-rune indexing.
+
+---
+
+### X59 - Lowercase Hex Color
+**Input:** `go run . --color=#ff5733 "hello"`
+**Expected:** Valid truecolor ANSI.
+**Why tricky:** Hex parsing should accept lowercase digits.
+
+---
+
+### X60 - Short Hex Color
+**Input:** `go run . --color=#fff "hello"`
+**Expected:** Warning; output uncolored.
+**Why tricky:** If shorthand hex is unsupported, it must fail cleanly.
+
+---
+
+### X61 - RGB With Spaces
+**Input:** `go run . --color="rgb(255, 0, 0)" "hello"`
+**Expected:** Valid red truecolor ANSI.
+**Why tricky:** Human-entered CSS notation commonly includes spaces.
+
+---
+
+### X62 - RGB Out of Range
+**Input:** `go run . --color=rgb(256,0,0) "hello"`
+**Expected:** Warning; output uncolored.
+**Why tricky:** `uint8` conversion must reject overflow instead of wrapping.
+
+---
+
+### X63 - HSL Wraparound Hue
+**Input:** `go run . --color=hsl(360,100%,50%) "hello"`
+**Expected:** Valid truecolor red or documented hue behavior.
+**Why tricky:** Hue normalization can produce edge math errors at 360.
+
+---
+
+### X64 - Invalid Color Mixed With Valid
+**Input:** `go run . --color=bad "he" --color=red "llo" "hello"`
+**Expected:** Warning for `bad`; `llo` still red.
+**Why tricky:** One bad rule must not poison the full color rule list.
+
+---
+
+### X65 - Later Invalid Rule Over Earlier Valid
+**Input:** `go run . --color=red "ll" --color=bad "ll" "hello"`
+**Expected:** `ll` remains red; invalid rule does not erase earlier valid ANSI.
+**Why tricky:** Last-wins should apply only to valid resolved rules.
+
+---
+
+### X66 - Duplicate Whole-String Colors
+**Input:** `go run . --color=red --color=blue "hello"`
+**Expected:** Whole string blue.
+**Why tricky:** Empty substring color rules still participate in last-wins ordering.
+
+---
+
+### X67 - ANSI Width Ignored by Align
+**Input:** `go run . --color=red --align=right "Hi"`
+**Expected:** Padding uses visible art width, not ANSI byte count.
+**Why tricky:** ANSI escape sequences can inflate string length by many bytes.
+
+---
+
+### X68 - ANSI Reset Does Not Leak
+**Input:** `go run . --color=red "e" "hello"`
+**Expected:** Only `e` is red; later glyphs are default.
+**Why tricky:** Missing resets make terminal color bleed across uncolored glyphs.
+
+---
+
+### X69 - Colored File Reversed
+**Steps:**
+1. `go run . --output=colored.txt --color=red "hello" standard`
+2. `go run . --reverse=colored.txt`
+**Expected:** `hello`
+**Why tricky:** Reverse must strip ANSI before glyph matching.
+
+---
+
+## Category 9: File System / Banner - Extended
+
+### X70 - Banner Directory Traversal
+**Input:** `go run . "hello" "../shadow"`
+**Expected:** Sanitized basename policy; no outside file read.
+**Why tricky:** Banner selection must not become arbitrary file access.
+
+---
+
+### X71 - Absolute Path as Banner
+**Input:** `go run . "hello" "C:\Temp\shadow.txt"`
+**Expected:** Treated as sanitized banner name or fallback, never as direct path.
+**Why tricky:** Windows absolute paths contain valid-looking extension text.
+
+---
+
+### X72 - Mixed Case Extension
+**Input:** `go run . "hello" "Shadow.TXT"`
+**Expected:** Loads shadow banner after lowercasing and stripping extension.
+**Why tricky:** Extension checks should be case-insensitive.
+
+---
+
+### X73 - Trailing Space in Banner Name
+**Input:** `go run . "hello" "shadow "`
+**Expected:** Consistent sanitized/fallback behavior with warning if not loaded.
+**Why tricky:** Invisible trailing whitespace can create confusing file names.
+
+---
+
+### X74 - Leading Dot in Banner Name
+**Input:** `go run . "hello" ".shadow"`
+**Expected:** Dot stripped or invalid fallback; no hidden-file lookup.
+**Why tricky:** `filepath.Base` plus sanitizer can transform names unexpectedly.
+
+---
+
+### X75 - Blank First Separator in Custom Banner
+**Input:** Custom banner where space glyph begins with blank separator.
+**Expected:** Space and `!` glyphs map correctly.
+**Why tricky:** Separator format detection often checks only one line.
+
+---
+
+### X76 - Final Newline in Banner File
+**Input:** Valid 855-line banner file ending with final LF.
+**Expected:** Loader accepts exactly 855 logical lines.
+**Why tricky:** `strings.Split` creates a trailing empty entry that must be handled deliberately.
+
+---
+
+### X77 - CRLF Banner File
+**Input:** Banner file saved with Windows line endings.
+**Expected:** Loader normalizes CRLF and validates normally.
+**Why tricky:** `\r` left in glyph lines breaks rendering and reverse matching.
+
+---
+
+### X78 - Missing Standard Banner
+**Input:** Controlled test where `banner/standard.txt` is unavailable.
+**Expected:** Fatal readable error; no nil map panic.
+**Why tricky:** Fallback cannot fallback if the fallback asset is gone.
+
+---
+
+### X79 - Corrupted Selected Banner
+**Input:** Selected banner has 854 or 856 lines.
+**Expected:** Warning + safe standard fallback.
+**Why tricky:** Corrupt user-selected banners should not crash the render path.
+
+---
+
+## Category 10: Output - Extended
+
+### X80 - Missing Output Directory
+**Input:** `go run . --output=missing/out.txt "hi"`
+**Expected:** Clear file-open error; no partial stdout render.
+**Why tricky:** Writer creation must happen before expensive rendering.
+
+---
+
+### X81 - Uppercase Output Extension
+**Input:** `go run . --output=OUT.TXT "hi"`
+**Expected:** Accepted as a `.txt` output.
+**Why tricky:** Users on Windows commonly use uppercase extensions.
+
+---
+
+### X82 - Output Without Extension
+**Input:** `go run . --output=out "hi"`
+**Expected:** Output usage error.
+**Why tricky:** The validator must reject malformed output flags before treating `out` as text.
+
+---
+
+### X83 - Output Path With Spaces
+**Input:** `go run . --output="my art.txt" "hi"`
+**Expected:** File created/truncated correctly.
+**Why tricky:** Quoted filename should remain one flag value.
+
+---
+
+### X84 - Output Then Reverse Round Trip
+**Steps:**
+1. `go run . --output=rt.txt "Hello World" standard`
+2. `go run . --reverse=rt.txt`
+**Expected:** `Hello World`
+**Why tricky:** Output formatting and reverse parsing must agree exactly.
+
+---
+
+### X85 - Duplicate Output Flags
+**Input:** `go run . --output=a.txt --output=b.txt "hi"`
+**Expected:** Last output wins with warning; `b.txt` receives art.
+**Why tricky:** Duplicate flag warnings should not become fatal unless policy says so.
+
+---
+
+### X86 - Output Empty String
+**Input:** `go run . --output=empty.txt ""`
+**Expected:** Empty file or documented no-output file behavior.
+**Why tricky:** Empty render should still follow the output writer path.
+
+---
+
+### X87 - Output Newline-Only Input
+**Input:** `go run . --output=n.txt "\n"`
+**Expected:** File contains exactly one newline.
+**Why tricky:** Blank-only special cases often differ between stdout and file output.
+
+---
+
+### X88 - Output With ANSI Color
+**Input:** `go run . --output=c.txt --color=red "hi"`
+**Expected:** Raw ANSI sequences present in file.
+**Why tricky:** File output should not strip color unless explicitly specified.
+
+---
+
+### X89 - Overwrite Shorter After Longer
+**Steps:**
+1. `go run . --output=f.txt "Testing long output!" standard`
+2. `go run . --output=f.txt "Hi" standard`
+**Expected:** No trailing bytes from the first render.
+**Why tricky:** This catches missing `O_TRUNC`.
+
+---
+
+### X90 - Protected Output Path
+**Input:** `go run . --output=<protected>/x.txt "hi"`
+**Expected:** Clear OS error; no panic.
+**Why tricky:** File errors must propagate cleanly.
+
+---
+
+## Category 11: Alignment - Extended
+
+### X91 - Right Align Wider Than Terminal
+**Input:** `COLUMNS=10 go run . --align=right "hello" standard`
+**Expected:** No truncation and no negative padding.
+**Why tricky:** Padding math must clamp at zero.
+
+---
+
+### X92 - Center Align Wider Than Terminal
+**Input:** `COLUMNS=10 go run . --align=center "hello" standard`
+**Expected:** Art left unchanged.
+**Why tricky:** `(width - visibleWidth) / 2` must not create invalid repeat counts.
+
+---
+
+### X93 - Right Align Space-Only Text
+**Input:** `go run . --align=right "   " standard | cat -e`
+**Expected:** Space glyphs and alignment padding are handled consistently.
+**Why tricky:** Visible width for all-space lines is ambiguous if trailing spaces are trimmed.
+
+---
+
+### X94 - Center Align Empty Segment in Multiline
+**Input:** `go run . --align=center "A\n\nB" standard | cat -e`
+**Expected:** Blank separator remains blank, not padded into visible spaces.
+**Why tricky:** Empty segments are line separators, not art lines.
+
+---
+
+### X95 - Justify With Leading and Trailing Spaces
+**Input:** `go run . --align=justify "  A B  " standard`
+**Expected:** Word gap justified; edge spaces handled intentionally.
+**Why tricky:** Word extraction must skip outer spaces without losing source semantics unexpectedly.
+
+---
+
+### X96 - Justify With Many Original Spaces
+**Input:** `go run . --align=justify "A     B" standard`
+**Expected:** One logical gap between `A` and `B`, or documented preservation policy.
+**Why tricky:** Multiple spaces can create empty word slots in naive split logic.
+
+---
+
+### X97 - Justify Two Very Wide Words
+**Input:** `COLUMNS=20 go run . --align=justify "MMMMMMMM WWWWWWWW" standard`
+**Expected:** At least one gap or documented no-gap fallback; no panic.
+**Why tricky:** Content width can exceed terminal width by a lot.
+
+---
+
+### X98 - Center With ANSI Color
+**Input:** `go run . --align=center --color=red "hi" standard`
+**Expected:** Centering ignores ANSI bytes.
+**Why tricky:** Same visible-width issue as right align, but off-by-half.
+
+---
+
+### X99 - Right Align Multiline Input
+**Input:** `go run . --align=right "A\nBB" standard`
+**Expected:** `A` and `BB` blocks aligned independently.
+**Why tricky:** Width/padding must be calculated per rendered segment line.
+
+---
+
+### X100 - Invalid `COLUMNS`
+**Input:** `COLUMNS=abc go run . --align=right "Hi" standard`
+**Expected:** Falls back to detected/default width.
+**Why tricky:** Environment variables are untrusted input.
+
+---
+
+## Category 12: Reverse - Extended
+
+### X101 - Empty Reverse File
+**Input:** `go run . --reverse=empty.txt`
+**Expected:** Empty output or clear reverse error; no panic.
+**Why tricky:** Reverse cannot assume at least 8 lines exist.
+
+---
+
+### X102 - One-Newline Reverse File
+**Input:** File containing only `\n`.
+**Expected:** Blank-input behavior is documented and stable.
+**Why tricky:** Trailing empty-line stripping can erase the entire file.
+
+---
+
+### X103 - Seven-Line Art Block
+**Input:** Reverse file with only 7 art rows.
+**Expected:** Clear unrecognized/incomplete glyph error.
+**Why tricky:** Copying into an 8-line block with missing rows can accidentally match padded glyphs.
+
+---
+
+### X104 - Nine-Line Art Without Separator
+**Input:** Reverse file with 9 non-empty lines.
+**Expected:** Extra line handled as new block or clear error.
+**Why tricky:** Reverse scans in chunks of 8 and can misinterpret row 9.
+
+---
+
+### X105 - Art With Trailing Spaces Stripped
+**Input:** Valid art after an editor trims trailing spaces.
+**Expected:** Reverse still works where padding can be reconstructed, otherwise clear mismatch.
+**Why tricky:** Many ASCII glyphs rely on right-side spaces for fixed width.
+
+---
+
+### X106 - Reverse Right-Aligned Output
+**Steps:**
+1. `go run . --output=right.txt --align=right "Hi" standard`
+2. `go run . --reverse=right.txt`
+**Expected:** Decoded string includes or normalizes alignment padding according to policy.
+**Why tricky:** Leading padding may look exactly like space glyphs.
+
+---
+
+### X107 - Center Padding Not Divisible by Space Width
+**Input:** Reverse centered art with odd padding.
+**Expected:** Best-effort prefix spaces; no unrecognized padding crash.
+**Why tricky:** Centering uses integer division and can leave uneven margins.
+
+---
+
+### X108 - Reverse Colored Right-Aligned File
+**Steps:**
+1. `go run . --output=cr.txt --color=red --align=right "Hi" standard`
+2. `go run . --reverse=cr.txt`
+**Expected:** ANSI stripped, alignment handled.
+**Why tricky:** This combines the two most fragile reverse preprocessors.
+
+---
+
+### X109 - Reverse CRLF File
+**Input:** Art file saved with `\r\n`.
+**Expected:** Decodes same as LF version.
+**Why tricky:** `\r` bytes inside glyph lines break exact signatures.
+
+---
+
+### X110 - Reverse With Wrong Banner
+**Input:** `go run . --reverse=shadow_hello.txt standard`
+**Expected:** Banner mismatch warning/usage, not garbage text.
+**Why tricky:** Some glyph chunks may accidentally match another font.
+
+---
+
+### X111 - Reverse Doom Punctuation
+**Input:** Doom-generated art for `!@#`.
+**Expected:** Reconstructs `!@#` when `doom` banner is selected.
+**Why tricky:** Doom uses trailing separators and different glyph widths.
+
+---
+
+### X112 - Reverse Space-Only Art
+**Input:** Art generated from `"   "`.
+**Expected:** Exactly three spaces.
+**Why tricky:** Space glyphs are visually blank and can be mistaken for separators.
+
+---
+
+### X113 - Reverse Literal Backslash
+**Input:** Art generated from `"a\b"`.
+**Expected:** `a\b`
+**Why tricky:** Reverse should return printable text, not re-interpret escapes.
+
+---
+
+### X114 - Reverse Multiline With Blank Middle
+**Input:** Art generated from `"A\n\nB"`.
+**Expected:** `A\n\nB`
+**Why tricky:** A blank input segment and a space glyph are both visually sparse.
+
+---
+
+### X115 - Reverse File Path With Spaces
+**Input:** `go run . --reverse="my art.txt"`
+**Expected:** Reads the intended file.
+**Why tricky:** Quoted paths must survive CLI classification as a single value.
+
+---
+
+### X116 - Duplicate Reverse Flag
+**Input:** `go run . --reverse=a.txt --reverse=b.txt`
+**Expected:** Last reverse wins with warning, or documented fatal policy.
+**Why tricky:** Duplicate mode flags need deterministic precedence.
+
+---
+
+## Category 13: Stdin
+
+### X117 - Stdin With Explicit Banner
+**Input:** `echo Hi | go run . --stdin shadow`
+**Expected:** Renders `Hi` using shadow banner.
+**Why tricky:** In stdin mode, the first positional argument is banner, not text.
+
+---
+
+### X118 - Stdin With Trailing Newline
+**Input:** `echo Hello | go run . --stdin`
+**Expected:** Final shell newline trimmed according to stdin policy.
+**Why tricky:** Pipes usually append newline; typed CLI strings usually do not.
+
+---
+
+### X119 - Stdin With Intentional Blank Line
+**Input:** Pipe `A\n\nB\n` into `go run . --stdin`.
+**Expected:** Internal blank line preserved; only final newline trimmed.
+**Why tricky:** `TrimRight` can remove too much if it trims all newlines.
+
+---
+
+### X120 - Stdin Plus Positional Text Conflict
+**Input:** `echo A | go run . --stdin B`
+**Expected:** `B` is banner or rejected by documented policy; it is not rendered as text.
+**Why tricky:** Stdin provides the text source, so positionals change meaning.
+
+---
+
+### X121 - Stdin Plus Color Substring
+**Input:** `echo hello | go run . --stdin --color=red "ell"`
+**Expected:** Stdin text is rendered with `ell` colored.
+**Why tricky:** Color substring parsing must not consume the banner/text position incorrectly.
+
+---
+
+### X122 - Stdin Plus Output
+**Input:** `echo hi | go run . --stdin --output=s.txt`
+**Expected:** Rendered stdin art is written to `s.txt`.
+**Why tricky:** Output writer path must work without positional text.
+
+---
+
+### X123 - Stdin Plus Reverse Conflict
+**Input:** `echo hi | go run . --stdin --reverse=x.txt`
+**Expected:** Usage; reverse mode and render mode do not mix.
+**Why tricky:** Both modes consume external input but mean completely different things.
+
+---
+
+## Category 14: Cross-Feature Stress
+
+### X124 - Color + Justify + Output
+**Input:** `go run . --output=o.txt --color=red "A" --align=justify "A B" standard`
+**Expected:** `A` red, justified spacing correct, ANSI persisted in file.
+**Why tricky:** ANSI byte length, justify gaps, and file output width all interact.
+
+---
+
+### X125 - Flags After String Before Banner
+**Input:** `go run . "hello" --color=red standard`
+**Expected:** Parser resolves text/banner/color predictably or rejects with clear usage.
+**Why tricky:** Position-independent flags make simple "arg 2 is banner" logic unsafe.
+
+---
+
+### X126 - Double-Dash Before Flag-Looking Text With Color
+**Input:** `go run . --color=red -- "--color=red"`
+**Expected:** Protected text rendered and colored as a whole string.
+**Why tricky:** The first color flag applies to a later literal that looks like a color flag.
+
+---
+
+### X127 - Unknown Flag After Delimiter
+**Input:** `go run . -- "--bad"`
+**Expected:** `--bad` rendered literally.
+**Why tricky:** Unknown flag checks must stop at delimiter.
+
+---
+
+### X128 - Multiple Warnings Order
+**Input:** Duplicate output + invalid color + invalid banner in one command.
+**Expected:** Warnings are deterministic and readable.
+**Why tricky:** Warning order becomes part of testability and user trust.
+
+---
+
+### X129 - Gopher With Output
+**Input:** `go run . --output=g.txt "非ASCII"`
+**Expected:** Gopher goes to selected writer or documented stdout policy.
+**Why tricky:** Easter-egg output should still respect the main writer path if that is the app policy.
+
+---
+
+### X130 - Gopher With Color
+**Input:** `go run . --color=red "非ASCII"`
+**Expected:** Gopher trigger still works; color rules do not break it.
+**Why tricky:** Color preparation should not prevent the non-ASCII blank-segment detector from firing.
