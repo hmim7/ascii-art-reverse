@@ -7,11 +7,10 @@
 ## Description
 A unified ASCII art utility built in Go that integrates six distinct features: core generation, multi-notation color support, terminal-aware alignment, custom banner loading, file output redirection, and a greedy-scan reverse engineering algorithm to reconstruct text from existing ASCII art files.
 
-## Authors & Team Roles
-- **hmim** - Lead / CLI Architect (CLI orchestration, flag parsing, and main.go logic).
-- **kchatzian** - Rendering & Color (Rendering pipeline, ANSI injection, and terminal-aware alignment).
-- **gtzimoka** - Banners & I/O (Banner loading, FS validation, and output redirection).
-- **edamaski** - Reverse Engineering (Greedy-scan algorithm for reconstructing text).
+## Author
+Designed and implemented by **hmim** — the entire Go source: CLI orchestration and flag classification, banner loading and validation, the rendering, color and alignment pipeline, output redirection, and the greedy-scan reverse algorithm.
+
+Additional contributions: **kchatzian** (edge-case documentation, `docs/edge-cases.md`) and **edamaski** (reverse-mode test fixtures, `internal/reverse/testdata/`).
 
 ## Installation
 ```bash
@@ -81,8 +80,8 @@ The CLI enforces strict flag validation and always exits with code 1 on bad inpu
 ascii-art-reverse
 .
 ├── .ai/                   # AI Usage Index and Logs
-├── .docs/                 # Project Documentation
-│   ├── .team/             # Team Workflow and Checklists
+├── docs/                  # Project Documentation
+│   ├── team/              # Team Workflow and Checklists
 │   │   ├── checklists/
 │   ├── PRD.md             # Product Requirements Document
 │   ├── audit-cases.md     # Official Audit Scenarios
@@ -143,11 +142,11 @@ ascii-art-reverse
 
 ## Project Documentation References:
 
-- [PRD](.docs/PRD.md)
-- [Error Cases](.docs/error-cases.md)
-- [Audit Cases](.docs/audit-cases.md)
-- [Edge Cases](.docs/edge-cases.md)
-- [Golden Tests](.docs/golden-tests.md)
+- [PRD](docs/PRD.md)
+- [Error Cases](docs/error-cases.md)
+- [Audit Cases](docs/audit-cases.md)
+- [Edge Cases](docs/edge-cases.md)
+- [Golden Tests](docs/golden-tests.md)
 
 ---
-*This project is part of the Zone01 Campus curriculum. It is built and maintained according to the guidelines specified in the `.docs/` directory.*
+*This project is part of the Zone01 Campus curriculum.*
