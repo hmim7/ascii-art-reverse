@@ -79,7 +79,6 @@ The CLI enforces strict flag validation and always exits with code 1 on bad inpu
 ```plaintext
 ascii-art-reverse
 .
-├── .ai/                   # AI Usage Index and Logs
 ├── docs/                  # Project Documentation
 │   ├── team/              # Team Workflow and Checklists
 │   │   ├── checklists/
